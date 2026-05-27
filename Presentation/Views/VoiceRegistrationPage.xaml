@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:BosesApp.Presentation.ViewModels"
+             x:Class="BosesApp.Presentation.Views.VoiceRegistrationPage"
+             x:DataType="vm:VoiceRegistrationViewModel"
+             Title="Voice Registration"
+             BackgroundColor="#F5F5F5">
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="20">
+
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0" Spacing="10" Margin="0,20,0,30">
+            <Label Text="🎤 Voice Registration"
+                   FontSize="32"
+                   FontAttributes="Bold"
+                   HorizontalOptions="Center"
+                   TextColor="#2C3E50"/>
+
+            <Label Text="Register your voice for secure authentication"
+                   FontSize="14"
+                   HorizontalOptions="Center"
+                   TextColor="#7F8C8D"/>
+        </VerticalStackLayout>
+
+        <!-- Main Content -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="20">
+
+                <!-- Progress Indicator -->
+                <Border BackgroundColor="White"
+                        Stroke="#E0E0E0"
+                        StrokeThickness="1"
+                        Padding="20">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="15"/>
+                    </Border.StrokeShape>
+
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="{Binding StatusMessage}"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="#2C3E50"
+                               HorizontalOptions="Center"/>
+
+                        <ProgressBar Progress="{Binding Progress}"
+                                    ProgressColor="#2ECC71"
+                                    HeightRequest="8"/>
+
+                        <Label Text="{Binding CurrentSample, StringFormat='Sample {0} of 3'}"
+                               FontSize="14"
+                               TextColor="#7F8C8D"
+                               HorizontalOptions="Center"
+                               IsVisible="{Binding IsComplete, Converter={StaticResource InvertedBoolConverter}}"/>
+
+                        <Label Text="✅ Registration Complete!"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="#2ECC71"
+                               HorizontalOptions="Center"
+                               IsVisible="{Binding IsComplete}"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Expected Phrase (Highlighted) -->
+                <Border BackgroundColor="#FFF9E6"
+                        Stroke="#F39C12"
+                        StrokeThickness="3"
+                        Padding="20">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="15"/>
+                    </Border.StrokeShape>
+
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="📝 Say This Phrase:"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="#E67E22"/>
+
+                        <Label Text="{Binding ExpectedPhrase}"
+                               FontSize="20"
+                               FontAttributes="Bold"
+                               TextColor="#2C3E50"
+                               HorizontalOptions="Center"
+                               LineBreakMode="WordWrap"
+                               HorizontalTextAlignment="Center"
+                               Padding="10"/>
+
+                        <Label Text="⚠️ You must say this exact phrase for security"
+                               FontSize="12"
+                               TextColor="#E67E22"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Validation Feedback (Success/Failure) -->
+                <Border IsVisible="{Binding ShowValidationFeedback}"
+                        Padding="20">
+                    <Border.BackgroundColor>
+                        <Binding Path="IsValidationSuccess">
+                            <Binding.Converter>
+                                <vm:BoolToColorConverter TrueColor="#D5F4E6" FalseColor="#FADBD8"/>
+                            </Binding.Converter>
+                        </Binding>
+                    </Border.BackgroundColor>
+                    <Border.Stroke>
+                        <Binding Path="IsValidationSuccess">
+                            <Binding.Converter>
+                                <vm:BoolToColorConverter TrueColor="#2ECC71" FalseColor="#E74C3C"/>
+                            </Binding.Converter>
+                        </Binding>
+                    </Border.Stroke>
+                    <Border.StrokeThickness>3</Border.StrokeThickness>
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="15"/>
+                    </Border.StrokeShape>
+
+                    <VerticalStackLayout Spacing="10">
+                        <Label FontSize="18"
+                               FontAttributes="Bold"
+                               HorizontalOptions="Center">
+                            <Label.Text>
+                                <Binding Path="IsValidationSuccess">
+                                    <Binding.Converter>
+                                        <vm:BoolToTextConverter TrueText="✅ Validation Success!" FalseText="❌ Validation Failed"/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </Label.Text>
+                            <Label.TextColor>
+                                <Binding Path="IsValidationSuccess">
+                                    <Binding.Converter>
+                                        <vm:BoolToColorConverter TrueColor="#27AE60" FalseColor="#C0392B"/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </Label.TextColor>
+                        </Label>
+
+                        <Label Text="{Binding ValidationMessage}"
+                               FontSize="14"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center"
+                               LineBreakMode="WordWrap">
+                            <Label.TextColor>
+                                <Binding Path="IsValidationSuccess">
+                                    <Binding.Converter>
+                                        <vm:BoolToColorConverter TrueColor="#27AE60" FalseColor="#C0392B"/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </Label.TextColor>
+                        </Label>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Instructions -->
+                <Border BackgroundColor="White"
+                        Stroke="#E0E0E0"
+                        StrokeThickness="1"
+                        Padding="20">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="15"/>
+                    </Border.StrokeShape>
+
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="💡 Tips for Best Results"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="#2C3E50"/>
+
+                        <Label Text="• Speak clearly and naturally"
+                               FontSize="12"
+                               TextColor="#95A5A6"/>
+                        <Label Text="• Say the EXACT phrase shown above"
+                               FontSize="12"
+                               TextColor="#95A5A6"/>
+                        <Label Text="• Record in a quiet environment"
+                               FontSize="12"
+                               TextColor="#95A5A6"/>
+                        <Label Text="• Hold device at normal distance"
+                               FontSize="12"
+                               TextColor="#95A5A6"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Recording Duration (visible when recording) -->
+                <Border BackgroundColor="#E74C3C"
+                        Stroke="#C0392B"
+                        StrokeThickness="2"
+                        Padding="15"
+                        IsVisible="{Binding IsRecording}">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10"/>
+                    </Border.StrokeShape>
+
+                    <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                        <Label Text="⏺"
+                               FontSize="24"
+                               TextColor="White"/>
+                        <Label Text="RECORDING"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="White"
+                               VerticalOptions="Center"/>
+                        <Label Text="{Binding RecordingDuration}"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="White"
+                               VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- Audio Feedback (shows what's happening) -->
+                <Border BackgroundColor="#EBF5FB"
+                        Stroke="#3498DB"
+                        StrokeThickness="2"
+                        Padding="20"
+                        IsVisible="{Binding AudioFeedback, Converter={StaticResource StringToBoolConverter}}">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="15"/>
+                    </Border.StrokeShape>
+
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="📊 System Feedback"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="#2C3E50"/>
+
+                        <Label Text="{Binding AudioFeedback}"
+                               FontSize="13"
+                               TextColor="#34495E"
+                               LineBreakMode="WordWrap"/>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Action Buttons -->
+        <Grid Grid.Row="2" Margin="0,20,0,10" ColumnDefinitions="*,Auto,*">
+
+            <!-- Reset Button -->
+            <Button Grid.Column="0"
+                   Text="Reset"
+                   Command="{Binding ResetRegistrationCommand}"
+                   BackgroundColor="#95A5A6"
+                   TextColor="White"
+                   CornerRadius="25"
+                   WidthRequest="100"
+                   HeightRequest="50"
+                   HorizontalOptions="End"
+                   Margin="0,0,10,0"
+                   IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"/>
+
+            <!-- Record Button -->
+            <Border Grid.Column="1"
+                   WidthRequest="100"
+                   HeightRequest="100"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Center">
+                <Border.BackgroundColor>
+                    <Binding Path="IsRecording">
+                        <Binding.Converter>
+                            <vm:BoolToColorConverter TrueColor="#E74C3C" FalseColor="#2ECC71"/>
+                        </Binding.Converter>
+                    </Binding>
+                </Border.BackgroundColor>
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="50"/>
+                </Border.StrokeShape>
+
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ToggleRecordingCommand}"/>
+                </Border.GestureRecognizers>
+
+                <Label FontSize="48"
+                      HorizontalOptions="Center"
+                      VerticalOptions="Center">
+                    <Label.Text>
+                        <Binding Path="IsRecording">
+                            <Binding.Converter>
+                                <vm:BoolToTextConverter TrueText="⏹️" FalseText="🎤"/>
+                            </Binding.Converter>
+                        </Binding>
+                    </Label.Text>
+                </Label>
+
+                <!-- Pulse animation when recording -->
+                <Border.Triggers>
+                    <DataTrigger TargetType="Border"
+                                Binding="{Binding IsRecording}"
+                                Value="True">
+                        <Setter Property="Scale" Value="1.1"/>
+                    </DataTrigger>
+                </Border.Triggers>
+            </Border>
+
+            <!-- Done Button -->
+            <Button Grid.Column="2"
+                   Text="Done"
+                   Command="{Binding CloseCommand}"
+                   BackgroundColor="#3498DB"
+                   TextColor="White"
+                   CornerRadius="25"
+                   WidthRequest="100"
+                   HeightRequest="50"
+                   HorizontalOptions="Start"
+                   Margin="10,0,0,0"
+                   IsVisible="{Binding IsComplete}"/>
+        </Grid>
+
+        <!-- Loading Overlay -->
+        <Grid Grid.RowSpan="3"
+             BackgroundColor="#80000000"
+             IsVisible="{Binding IsBusy}">
+            <VerticalStackLayout HorizontalOptions="Center"
+                               VerticalOptions="Center"
+                               Spacing="10">
+                <ActivityIndicator IsRunning="{Binding IsBusy}"
+                                 Color="White"
+                                 WidthRequest="60"
+                                 HeightRequest="60"/>
+                <Label Text="{Binding StatusMessage}"
+                      TextColor="White"
+                      FontSize="14"
+                      HorizontalOptions="Center"/>
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+
+</ContentPage>

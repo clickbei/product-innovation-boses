@@ -96,34 +96,54 @@
         </Border>
 
         <!-- Quick Action Buttons -->
-        <HorizontalStackLayout Grid.Row="2"
-                              Spacing="10"
-                              HorizontalOptions="Center"
-                              Margin="0,15">
-            <Button Text="Balance"
-                   Command="{Binding SimulateVoiceInputCommand}"
-                   CommandParameter="Magkano ang balance ko?"
-                   BackgroundColor="#3498DB"
-                   TextColor="White"
-                   CornerRadius="20"
-                   Padding="20,10"/>
+        <Grid Grid.Row="2" Margin="0,15">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <Button Text="Transactions"
-                   Command="{Binding SimulateVoiceInputCommand}"
-                   CommandParameter="Ano ang mga recent transactions ko?"
-                   BackgroundColor="#9B59B6"
-                   TextColor="White"
-                   CornerRadius="20"
-                   Padding="20,10"/>
+            <!-- First Row -->
+            <HorizontalStackLayout Grid.Row="0"
+                                  Spacing="10"
+                                  HorizontalOptions="Center">
+                <Button Text="Balance"
+                       Command="{Binding SimulateVoiceInputCommand}"
+                       CommandParameter="Magkano ang balance ko?"
+                       BackgroundColor="#3498DB"
+                       TextColor="White"
+                       CornerRadius="20"
+                       Padding="20,10"/>
 
-            <Button Text="PWD Discount"
-                   Command="{Binding SimulateVoiceInputCommand}"
-                   CommandParameter="Calculate PWD discount for 1000 pesos medicine"
-                   BackgroundColor="#E67E22"
+                <Button Text="Transactions"
+                       Command="{Binding SimulateVoiceInputCommand}"
+                       CommandParameter="Ano ang mga recent transactions ko?"
+                       BackgroundColor="#9B59B6"
+                       TextColor="White"
+                       CornerRadius="20"
+                       Padding="20,10"/>
+
+                <Button Text="PWD Discount"
+                       Command="{Binding SimulateVoiceInputCommand}"
+                       CommandParameter="Calculate PWD discount for 1000 pesos medicine"
+                       BackgroundColor="#E67E22"
+                       TextColor="White"
+                       CornerRadius="20"
+                       Padding="20,10"
+                       IsVisible="{Binding IsPwd}"/>
+            </HorizontalStackLayout>
+
+            <!-- Second Row -->
+            <Button Grid.Row="2"
+                   Text="🎤 Register Voice"
+                   Command="{Binding RegisterVoiceCommand}"
+                   BackgroundColor="#E74C3C"
                    TextColor="White"
                    CornerRadius="20"
-                   Padding="20,10"/>
-        </HorizontalStackLayout>
+                   Padding="20,10"
+                   HorizontalOptions="Center"
+                   FontAttributes="Bold"/>
+        </Grid>
 
         <!-- Main Voice Button -->
         <Grid Grid.Row="3" Margin="0,20,0,10">

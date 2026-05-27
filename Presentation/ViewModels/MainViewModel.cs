@@ -1,3 +1,4 @@
+using BosesApp.Core.Data.Models;
 using BosesApp.Core.Interfaces;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -38,6 +39,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _aiResponse = string.Empty;
 
+    [ObservableProperty]
+    private bool _isPwd;
+
     public ObservableCollection<ConversationMessage> ConversationHistory { get; } = new();
 
     private int _currentUserId = 1; // Default user for demo
@@ -59,6 +63,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             IsBusy = true;
+           
             StatusMessage = "Initializing Boses...";
 
             // Initialize AI orchestrator
@@ -81,6 +86,8 @@ public partial class MainViewModel : ObservableObject
 
             CurrentUserName = user.FullName;
             IsVoiceAuthEnabled = user.IsVoiceAuthEnabled;
+            IsPwd = user.UserType == UserType.PWD;
+
 
             StatusMessage = $"Welcome, {CurrentUserName}! Tap to speak.";
 
@@ -237,6 +244,26 @@ public partial class MainViewModel : ObservableObject
         LastTranscription = string.Empty;
         AiResponse = string.Empty;
         StatusMessage = "Conversation cleared. Tap to speak.";
+    }
+
+    [RelayCommand]
+    private async Task RegisterVoiceAsync()
+    {
+        try
+        {
+            // Navigate to voice registration page
+            var registrationPage = Application.Current?.Handler?.MauiContext?.Services
+                .GetService<Presentation.Views.VoiceRegistrationPage>();
+
+            if (registrationPage != null && Application.Current?.Windows.FirstOrDefault()?.Page is NavigationPage navPage)
+            {
+                await navPage.PushAsync(registrationPage);
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error: {ex.Message}";
+        }
     }
 
     private void AddMessage(string sender, string message, bool isUser)

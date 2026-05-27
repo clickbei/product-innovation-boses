@@ -6,8 +6,13 @@ using BosesApp.Core.Services;
 using BosesApp.Modules.Plugins;
 using BosesApp.Presentation.ViewModels;
 using BosesApp.Presentation.Views;
+using CommunityToolkit.Maui;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+
+#if WINDOWS || ANDROID || IOS || MACCATALYST
+using Plugin.Maui.Audio;
+#endif
 
 namespace BosesApp
 {
@@ -24,6 +29,7 @@ public static class MauiProgram
 
         builder
             .UseMauiApp<App>()
+            .UseMauiCommunityToolkit()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -33,11 +39,23 @@ public static class MauiProgram
         // Configure data persistence with fallback
         ConfigureDataServices(builder.Services);
 
+#if WINDOWS || ANDROID || IOS || MACCATALYST
+        // Register Plugin.Maui.Audio for real audio recording
+        builder.Services.AddSingleton(AudioManager.Current);
+#endif
+
         // Register core services
         builder.Services.AddSingleton<IVoiceService, VoiceService>();
-        builder.Services.AddSingleton<IVoiceAuthService, VoiceAuthService>();
+        builder.Services.AddSingleton<IAudioRecordingService, AudioRecordingService>();
+        builder.Services.AddSingleton<IAudioAnalysisService, AudioAnalysisService>();
+        builder.Services.AddSingleton<IVoiceAuthService, RealVoiceAuthService>();
         builder.Services.AddSingleton<IAiOrchestrator, AiOrchestratorService>();
         builder.Services.AddSingleton<IBankApiClient, MockBrankasApiClient>();
+        builder.Services.AddSingleton<ILocalizationService, LocalizationService>();
+
+        // Register .NET MAUI Community Toolkit Speech Recognition (FREE, easy setup!)
+        builder.Services.AddSingleton(CommunityToolkit.Maui.Media.SpeechToText.Default);
+        builder.Services.AddSingleton<ISpeechRecognitionService, MauiSpeechRecognitionService>();
 
         // Register plugins
         builder.Services.AddSingleton<BankingPlugin>();
@@ -46,6 +64,12 @@ public static class MauiProgram
         // Register ViewModels and Views
         builder.Services.AddTransient<MainViewModel>();
         builder.Services.AddTransient<MainPage>();
+        builder.Services.AddTransient<VoiceRegistrationViewModel>();
+        builder.Services.AddTransient<VoiceRegistrationPage>();
+        builder.Services.AddTransient<OnboardingViewModel>();
+        builder.Services.AddTransient<OnboardingPage>();
+        builder.Services.AddTransient<LanguageSelectionViewModel>();
+        builder.Services.AddTransient<LanguageSelectionPage>();
 
 #if DEBUG
         builder.Logging.AddDebug();
@@ -84,14 +108,69 @@ public static class MauiProgram
             {
                 var dbContext = sp.GetRequiredService<BosesDbContext>();
 
-                // Ensure database is created
+                // Apply migrations to ensure database schema is up-to-date
                 try
                 {
+                    // Check if database needs recreation (old schema)
+                    bool needsRecreation = false;
+                    try
+                    {
+                        dbContext.Database.OpenConnection();
+                        using (var command = dbContext.Database.GetDbConnection().CreateCommand())
+                        {
+                            // Check if UserProfiles table exists
+                            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='UserProfiles'";
+                            var tableExists = (long)(command.ExecuteScalar() ?? 0L) > 0;
+
+                            if (tableExists)
+                            {
+                                // Check if PreferredLanguage column exists
+                                command.CommandText = "PRAGMA table_info(UserProfiles)";
+                                using (var reader = command.ExecuteReader())
+                                {
+                                    bool hasPreferredLanguage = false;
+                                    while (reader.Read())
+                                    {
+                                        var columnName = reader[1].ToString();
+                                        if (columnName == "PreferredLanguage")
+                                        {
+                                            hasPreferredLanguage = true;
+                                            break;
+                                        }
+                                    }
+
+                                    if (!hasPreferredLanguage)
+                                    {
+                                        Console.WriteLine("Old database schema detected (missing PreferredLanguage column). Will recreate database...");
+                                        needsRecreation = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        dbContext.Database.CloseConnection();
+                    }
+
+                    //dbContext.Database.EnsureDeleted();
+                    // If we need to recreate, do it BEFORE accessing schema again
+                    if (needsRecreation)
+                    {
+                        Console.WriteLine("Deleting old database file...");
+                        dbContext.Database.EnsureDeleted();
+                        Console.WriteLine("Database deleted. Will recreate with new schema...");
+                    }
+
+                    // Create database with current schema
+                    Console.WriteLine("Ensuring database is created...");
                     dbContext.Database.EnsureCreated();
+                    Console.WriteLine("Database ready.");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"SQLite initialization failed: {ex.Message}");
+                    Console.WriteLine($"SQLite migration/database setup failed: {ex.Message}");
+                    Console.WriteLine($"Stack trace: {ex.StackTrace}");
                     Console.WriteLine("Falling back to JSON storage...");
 
                     // Automatic fallback to JSON if SQLite fails
