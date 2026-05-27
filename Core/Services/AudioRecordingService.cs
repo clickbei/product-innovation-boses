@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 #if WINDOWS || ANDROID || IOS || MACCATALYST
 using Plugin.Maui.Audio;

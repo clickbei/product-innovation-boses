@@ -1,6 +1,7 @@
 using BosesApp.Core.Data;
 using BosesApp.Core.Interfaces;
 using BosesApp.Core.Network.Interfaces;
+using BosesApp.Core.Network.Interfaces;
 using BosesApp.Core.Network.Services;
 using BosesApp.Core.Services;
 using BosesApp.Modules.Plugins;
@@ -51,7 +52,12 @@ public static class MauiProgram
         builder.Services.AddSingleton<IVoiceAuthService, RealVoiceAuthService>();
         builder.Services.AddSingleton<IAiOrchestrator, AiOrchestratorService>();
         builder.Services.AddSingleton<IBankApiClient, MockBrankasApiClient>();
+        // Phase 3: Production banking API client (mock for demo)
+        builder.Services.AddSingleton<IBankingApiClient, MockBankingApiClient>();
         builder.Services.AddSingleton<ILocalizationService, LocalizationService>();
+        builder.Services.AddSingleton<IGuardianNotificationService, GuardianNotificationService>();
+        builder.Services.AddSingleton<IAccessibilityService, AccessibilityService>();
+        builder.Services.AddSingleton<IAnalyticsService, AnalyticsService>();
 
         // Register .NET MAUI Community Toolkit Speech Recognition (FREE, easy setup!)
         builder.Services.AddSingleton(CommunityToolkit.Maui.Media.SpeechToText.Default);

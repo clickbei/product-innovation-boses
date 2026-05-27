@@ -15,7 +15,8 @@ public class SpeechRecognitionService : ISpeechRecognitionService
 
     public event EventHandler<RecognitionResultEventArgs>? OnRecognitionResultUpdated;
 
-    public bool IsRealRecognitionAvailable => true; // Will be true when real API is integrated
+    public bool IsRealRecognitionAvailable => false; // Simulation-only implementation
+    public bool SimulationMode { get; set; } = true;
 
     public SpeechRecognitionService()
     {

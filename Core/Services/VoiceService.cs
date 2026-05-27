@@ -1,47 +1,86 @@
+﻿using System.Diagnostics;
 using BosesApp.Core.Interfaces;
 
 namespace BosesApp.Core.Services;
 
 /// <summary>
-/// Voice interaction service with real Text-to-Speech
-/// Handles speech-to-text and text-to-speech using MAUI APIs
+/// Voice interaction service with real Speech-to-Text (via MauiSpeechRecognitionService)
+/// and real Text-to-Speech (via MAUI TextToSpeech API).
+///
+/// SimulationMode = false  →  uses the device microphone + CommunityToolkit STT.
+/// SimulationMode = true   →  returns canned Filipino phrases (demo / CI safety net).
 /// </summary>
 public class VoiceService : IVoiceService
 {
+    private readonly ISpeechRecognitionService _speechRecognition;
+
     private bool _isListening;
     private string _simulatedInput = string.Empty;
-    private readonly List<string> _demoResponses = new()
-    {
+    private readonly List<string> _demoResponses =
+    [
         "Magkano ang balance ko?",
         "Ipadala ang 500 pesos kay Juan",
         "Ano ang mga recent transactions ko?",
         "Gusto kong mag-transfer ng pera"
-    };
+    ];
 
     public bool IsListening => _isListening;
-    public bool SimulationMode { get; set; } = false; // Changed to false - use real TTS
+
+    private bool _simulationMode;
+    public bool SimulationMode
+    {
+        get => _simulationMode;
+        set
+        {
+            _simulationMode = value;
+            // Keep the underlying STT service in sync so it doesn't use real
+            // microphone when we are in simulation mode.
+            _speechRecognition.SimulationMode = value;
+        }
+    }
+
+    public VoiceService(ISpeechRecognitionService speechRecognition)
+    {
+        _speechRecognition = speechRecognition;
+        // Default: use real microphone for demo.
+        _simulationMode = false;
+        _speechRecognition.SimulationMode = false;
+    }
+
+    // ── Start listening ────────────────────────────────────────────────────────
 
     public async Task<bool> StartListeningAsync()
     {
         if (_isListening)
             return false;
 
-        _isListening = true;
-
         if (SimulationMode)
         {
-            // Simulate microphone initialization delay
-            await Task.Delay(300);
+            _isListening = true;
+            await Task.Delay(300); // simulate mic warm-up
+            Debug.WriteLine("[VoiceService] 🔄 Simulation mode — mic start skipped");
+            return true;
+        }
+
+        // Real microphone path — delegate to MauiSpeechRecognitionService
+        Debug.WriteLine("[VoiceService] 🎤 Starting real microphone via STT service...");
+        var started = await _speechRecognition.StartListeningAsync("fil-PH");
+        if (started)
+        {
+            _isListening = true;
+            Debug.WriteLine("[VoiceService] ✅ Real microphone started");
         }
         else
         {
-            // TODO: Initialize Deepgram streaming connection
-            // In production, this would establish WebSocket connection to Deepgram
-            await Task.Delay(500);
+            Debug.WriteLine("[VoiceService] ❌ Failed to start microphone — falling back to simulation");
+            _simulationMode = true;
+            _isListening = true;
         }
 
         return true;
     }
+
+    // ── Stop listening ─────────────────────────────────────────────────────────
 
     public async Task<string> StopListeningAsync()
     {
@@ -52,27 +91,34 @@ public class VoiceService : IVoiceService
 
         if (SimulationMode)
         {
-            // Return simulated input or random demo response
-            await Task.Delay(500); // Simulate processing time
+            await Task.Delay(500); // simulate STT processing
 
             if (!string.IsNullOrEmpty(_simulatedInput))
             {
                 var result = _simulatedInput;
                 _simulatedInput = string.Empty;
+                Debug.WriteLine($"[VoiceService] 🔄 Simulation: returning preset input '{result}'");
                 return result;
             }
 
-            // Return random demo response
-            var random = new Random();
-            return _demoResponses[random.Next(_demoResponses.Count)];
+            var phrase = _demoResponses[Random.Shared.Next(_demoResponses.Count)];
+            Debug.WriteLine($"[VoiceService] 🔄 Simulation: returning demo phrase '{phrase}'");
+            return phrase;
         }
-        else
+
+        // Real microphone path
+        Debug.WriteLine("[VoiceService] 🛑 Stopping real microphone...");
+        var transcription = await _speechRecognition.StopListeningAsync();
+
+        if (!string.IsNullOrWhiteSpace(transcription))
         {
-            // TODO: Stop Deepgram streaming and get final transcription
-            // In production, this would close WebSocket and return transcribed text
-            await Task.Delay(800);
-            return "Real transcription would appear here";
+            Debug.WriteLine($"[VoiceService] ✅ Transcribed: '{transcription}'");
+            return transcription;
         }
+
+        // No speech detected — return empty so the caller can show a "try again" message
+        Debug.WriteLine("[VoiceService] ⚠️ No speech detected");
+        return string.Empty;
     }
 
     public async Task SpeakAsync(string text, CancellationToken cancellationToken = default)
