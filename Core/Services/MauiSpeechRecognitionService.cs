@@ -6,476 +6,337 @@ using CommunityToolkit.Maui.Media;
 namespace BosesApp.Core.Services;
 
 /// <summary>
-/// Speech recognition using .NET MAUI Community Toolkit
-/// FREE, easy setup, works offline on Android 33+
-/// No model downloads or complex configuration needed!
+/// Phase 1 � Speech-to-Text via MAUI Community Toolkit SpeechToText.
+///
+/// ?? SIMULATION MODE (SimulationMode = true � DEFAULT for demo) ??????????????
+/// ?  � StartListeningAsync ? returns true immediately, fires a fake partial   ?
+/// ?    result event after 800 ms with a canned Filipino phrase.               ?
+/// ?  � StopListeningAsync  ? returns a random banking phrase; fires final     ?
+/// ?    OnRecognitionResultUpdated with IsFinal = true.                        ?
+/// ?  � RecognizeAsync      ? returns a canned phrase for any audio buffer.    ?
+/// ?  No microphone, no network, no Android API-level restriction required.    ?
+/// ????????????????????????????????????????????????????????????????????????????
+///
+/// ?? PRODUCTION PATH (SimulationMode = false) ???????????????????????????????
+/// ?  Uses CommunityToolkit.Maui.Media.ISpeechToText, which routes to:        ?
+/// ?    Android   ? SpeechRecognizer  (requires API 33+ for offline)          ?
+/// ?    iOS/macOS ? SFSpeechRecognizer                                         ?
+/// ?    Windows   ? Windows.Media.SpeechRecognition                           ?
+/// ?                                                                           ?
+/// ?  Deepgram upgrade path:                                                   ?
+/// ?    Replace this class with DeepgramSpeechRecognitionService that opens    ?
+/// ?    a WebSocket to wss://api.deepgram.com/v1/listen during recording.     ?
+/// ????????????????????????????????????????????????????????????????????????????
 /// </summary>
 public class MauiSpeechRecognitionService : ISpeechRecognitionService
 {
+    // ?? Simulation flag ????????????????????????????????????????????????????????
+    /// <summary>
+    /// TRUE  = mock transcriptions � demo-safe, no microphone required.
+    /// FALSE = CommunityToolkit on-device STT (StartListenAsync / StopListenAsync).
+    /// Set to false and provide microphone permission to use real recognition.
+    /// </summary>
+    public bool SimulationMode { get; set; } = true; // TODO: flip to false on a real device
+
     private readonly ISpeechToText _speechToText;
-    private readonly Random _random;
-    private string? _recognizedText;
+    private string? _latestPartialResult;
 
+    // ?? ISpeechRecognitionService contract ?????????????????????????????????????
     public event EventHandler<RecognitionResultEventArgs>? OnRecognitionResultUpdated;
-
     public bool IsRealRecognitionAvailable { get; private set; }
 
+    // ?? Canned demo phrases (simulation) ??????????????????????????????????????
+    private static readonly string[] _filipinoPhrases =
+    [
+        "Magkano ang balance ko?",
+        "Ipadala ang 500 pesos kay Juan",
+        "Ano ang mga recent transactions ko?",
+        "Gusto kong mag-transfer ng pera",
+        "Kalkulahin ang PWD discount para sa gamot",
+        "Bayaran ang kuryente bill",
+        "Tingnan ang aking loan status"
+    ];
+
+    private static readonly string[] _englishPhrases =
+    [
+        "my voice is my password",
+        "i authorize this transaction",
+        "this is my secure voice",
+        "check my account balance",
+        "show recent transactions"
+    ];
+
+    // ?? Constructor ????????????????????????????????????????????????????????????
     public MauiSpeechRecognitionService(ISpeechToText speechToText)
     {
         _speechToText = speechToText;
-        _random = new Random();
 
-        // Subscribe to speech recognition events
-        Debug.WriteLine("[SpeechRecognition] 🔗 Subscribing to speech recognition events...");
-        _speechToText.RecognitionResultUpdated += OnMauiRecognitionResultUpdated;
-        _speechToText.RecognitionResultCompleted += OnMauiRecognitionResultCompleted;
-        Debug.WriteLine("[SpeechRecognition] 🔗 Event subscriptions complete");
+        // Wire up toolkit events (used in production path)
+        _speechToText.RecognitionResultUpdated   += OnToolkitResultUpdated;
+        _speechToText.RecognitionResultCompleted += OnToolkitResultCompleted;
 
-        // Check if speech recognition is available
-        IsRealRecognitionAvailable = CheckAvailability();
+        IsRealRecognitionAvailable = DetectPlatformAvailability();
 
-        if (IsRealRecognitionAvailable)
-        {
-            Debug.WriteLine("[SpeechRecognition] ✅ Initialized with .NET MAUI Community Toolkit");
-            Debug.WriteLine("[SpeechRecognition] ✅ FREE offline speech recognition available!");
-        }
-        else
-        {
-            Debug.WriteLine("[SpeechRecognition] 🔄 Speech recognition not available, using simulation");
-        }
+        Debug.WriteLine(IsRealRecognitionAvailable
+            ? "[STT] ? Real recognition available on this platform"
+            : "[STT] ??  Real recognition not available � simulation will be used");
     }
 
-    private void OnMauiRecognitionResultUpdated(object? sender, SpeechToTextRecognitionResultUpdatedEventArgs e)
-    {
-        Debug.WriteLine("[SpeechRecognition] 🔔 OnRecognitionResultUpdated EVENT FIRED!");
-        Debug.WriteLine($"[SpeechRecognition] 🔍 Sender: {sender?.GetType().Name ?? "null"}");
-        Debug.WriteLine($"[SpeechRecognition] 🔍 e.RecognitionResult: '{e.RecognitionResult ?? "null"}'");
-
-        // e.RecognitionResult is a string (the partial recognized text)
-        if (!string.IsNullOrEmpty(e.RecognitionResult))
-        {
-            var partialText = e.RecognitionResult;
-            Debug.WriteLine($"[SpeechRecognition] 🎤 Partial (REAL): {partialText}");
-
-            // Store the latest partial result as the recognized text
-            // This is our fallback since OnRecognitionResultCompleted might not fire
-            _recognizedText = partialText;
-            Debug.WriteLine($"[SpeechRecognition] 💾 Stored partial result: '{_recognizedText}'");
-
-            // Raise the public event
-            Debug.WriteLine($"[SpeechRecognition] 📢 Raising public OnRecognitionResultUpdated event with: '{partialText}'");
-            OnRecognitionResultUpdated?.Invoke(this, new RecognitionResultEventArgs 
-            { 
-                RecognizedText = partialText,
-                Confidence = 0.85,
-                IsFinal = false
-            });
-        }
-        else
-        {
-            Debug.WriteLine("[SpeechRecognition] ⚠️ RecognitionResult was null or empty!");
-        }
-    }
-
-    private void OnMauiRecognitionResultCompleted(object? sender, SpeechToTextRecognitionResultCompletedEventArgs e)
-    {
-        Debug.WriteLine("[SpeechRecognition] 🔔 OnRecognitionResultCompleted event fired!");
-        Debug.WriteLine($"[SpeechRecognition] 🔍 e.RecognitionResult is null: {e.RecognitionResult == null}");
-
-        if (e.RecognitionResult != null)
-        {
-            Debug.WriteLine($"[SpeechRecognition] 🔍 IsSuccessful: {e.RecognitionResult.IsSuccessful}");
-            Debug.WriteLine($"[SpeechRecognition] 🔍 Text: '{e.RecognitionResult.Text}'");
-            Debug.WriteLine($"[SpeechRecognition] 🔍 Exception: {e.RecognitionResult.Exception?.Message ?? "null"}");
-        }
-
-        // NOTE: This event often doesn't fire reliably with MAUI Community Toolkit
-        // We rely on OnRecognitionResultUpdated (partial results) instead
-        // If this event does fire, update the recognized text as final result
-        if (e.RecognitionResult != null && e.RecognitionResult.IsSuccessful && !string.IsNullOrWhiteSpace(e.RecognitionResult.Text))
-        {
-            _recognizedText = e.RecognitionResult.Text;
-            Debug.WriteLine($"[SpeechRecognition] ✅ FINAL Recognition Success: '{_recognizedText}'");
-
-            // Raise the public event for final result
-            Debug.WriteLine($"[SpeechRecognition] 📢 Raising public OnRecognitionResultUpdated event (final) with: '{_recognizedText}'");
-            OnRecognitionResultUpdated?.Invoke(this, new RecognitionResultEventArgs 
-            { 
-                RecognizedText = _recognizedText,
-                Confidence = 0.95,
-                IsFinal = true
-            });
-        }
-        else if (e.RecognitionResult?.Exception != null)
-        {
-            Debug.WriteLine($"[SpeechRecognition] ❌ Recognition failed: {e.RecognitionResult.Exception.Message}");
-        }
-        else
-        {
-            Debug.WriteLine("[SpeechRecognition] ⚠️ Recognition completed but no result");
-        }
-    }
-
-    private bool CheckAvailability()
-    {
-        try
-        {
-            // Check platform-specific availability
-#if ANDROID
-            // Android 33+ (API level 33) supports offline recognition
-            var apiLevel = Android.OS.Build.VERSION.SdkInt;
-            var isAvailable = apiLevel >= Android.OS.BuildVersionCodes.Tiramisu; // Android 13 (API 33)
-            Debug.WriteLine($"[SpeechRecognition] 📱 Android API Level: {(int)apiLevel}");
-            if (isAvailable)
-            {
-                Debug.WriteLine($"[SpeechRecognition] ✅ Android {(int)apiLevel}+ supports offline speech recognition");
-            }
-            else
-            {
-                Debug.WriteLine($"[SpeechRecognition] ⚠️ Android {(int)apiLevel} < 33 - using online/simulation fallback");
-            }
-            return isAvailable;
-#elif IOS || MACCATALYST
-            // iOS 13+ supports offline recognition
-            var version = UIKit.UIDevice.CurrentDevice.SystemVersion;
-            Debug.WriteLine($"[SpeechRecognition] 📱 iOS Version: {version}");
-            return true; // iOS 13+ is minimum supported version
-#elif WINDOWS
-            // Windows has limited support, may require internet
-            Debug.WriteLine("[SpeechRecognition] 📱 Windows platform detected");
-            return true; // Try to use it, may fall back to online
-#else
-            Debug.WriteLine("[SpeechRecognition] 📱 Unknown platform");
-            return false;
-#endif
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[SpeechRecognition] ❌ Availability check failed: {ex.Message}");
-            Debug.WriteLine($"[SpeechRecognition] Stack trace: {ex.StackTrace}");
-            return false;
-        }
-    }
-
+    // ?? ISpeechRecognitionService � Start ?????????????????????????????????????
     public async Task<bool> StartListeningAsync(string language = "en-US")
     {
-        Debug.WriteLine($"[SpeechRecognition] ▶️ StartListeningAsync called (language: {language})");
-        Debug.WriteLine($"[SpeechRecognition] IsRealRecognitionAvailable: {IsRealRecognitionAvailable}");
+        Debug.WriteLine($"[STT] StartListeningAsync � lang={language} sim={SimulationMode}");
+        _latestPartialResult = null;
 
-        // Try real recognition first, fall back to simulation if unavailable
-        if (!IsRealRecognitionAvailable)
+        if (SimulationMode || !IsRealRecognitionAvailable)
         {
-            Debug.WriteLine("[SpeechRecognition] 🔄 Real recognition NOT available - using simulation mode");
-            Debug.WriteLine("[SpeechRecognition] ℹ️ This usually means: API level < 33, permission denied, or platform not supported");
-            // Simulate successful start
-            _recognizedText = null;
+            // [SIMULATION] Fire a partial result after a short delay
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(800);
+                var partial = PickPhrase(language);
+                _latestPartialResult = partial;
+                RaiseResult(partial[..Math.Min(14, partial.Length)] + "�", 0.72, isFinal: false);
+            });
             return true;
         }
 
+        // ?? PRODUCTION PATH ????????????????????????????????????????????????????
         try
         {
-            // Normalize language code to supported format
-            var normalizedLanguage = NormalizeLanguageCode(language);
-            Debug.WriteLine($"[SpeechRecognition] 🎤 Starting REAL speech recognition (requested: {language}, using: {normalizedLanguage})");
-
-            // Request microphone permission
-            var status = await Permissions.RequestAsync<Permissions.Microphone>();
-            if (status != PermissionStatus.Granted)
+            var micGranted = await Permissions.RequestAsync<Permissions.Microphone>();
+            if (micGranted != PermissionStatus.Granted)
             {
-                Debug.WriteLine("[SpeechRecognition] ❌ Microphone permission denied, falling back to simulation");
-                IsRealRecognitionAvailable = false; // Disable for this session
-                return true; // Still return true so simulation can work
+                Debug.WriteLine("[STT] ? Microphone permission denied � falling back to simulation");
+                IsRealRecognitionAvailable = false;
+                return true; // allow simulation to take over
             }
 
-            Debug.WriteLine("[SpeechRecognition] ✅ Microphone permission granted");
-
-            // Request speech recognition permissions
-            Debug.WriteLine("[SpeechRecognition] 📋 Requesting speech recognition permissions...");
             await _speechToText.RequestPermissions(CancellationToken.None);
-            Debug.WriteLine("[SpeechRecognition] ✅ Permissions granted");
 
-            // Reset recognized text before starting new recognition
-            _recognizedText = null;
-
-            // Create speech recognition options
-            var options = new SpeechToTextOptions
+            var lang = NormaliseLanguage(language);
+            var opts = new SpeechToTextOptions
             {
-                Culture = CultureInfo.GetCultureInfo(normalizedLanguage),
+                Culture                    = CultureInfo.GetCultureInfo(lang),
                 ShouldReportPartialResults = true
             };
 
-            Debug.WriteLine($"[SpeechRecognition] 📢 Calling _speechToText.StartListenAsync with culture: {normalizedLanguage}");
-            Debug.WriteLine($"[SpeechRecognition] 📢 ShouldReportPartialResults: {options.ShouldReportPartialResults}");
-
-            // Start listening with real speech recognition
-            await _speechToText.StartListenAsync(options, CancellationToken.None);
-
-            Debug.WriteLine("[SpeechRecognition] ✅ Listening started successfully");
-            Debug.WriteLine("[SpeechRecognition] 🎤 Waiting for speech... (events should fire now)");
-            Debug.WriteLine($"[SpeechRecognition] Event handler attached: {OnRecognitionResultUpdated != null}");
+            await _speechToText.StartListenAsync(opts, CancellationToken.None);
+            Debug.WriteLine("[STT] ? Real recognition started");
             return true;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SpeechRecognition] ❌ Real recognition error: {ex.Message}");
-            Debug.WriteLine($"[SpeechRecognition] ❌ Exception type: {ex.GetType().Name}");
-            Debug.WriteLine($"[SpeechRecognition] Stack trace: {ex.StackTrace}");
+            Debug.WriteLine($"[STT] ? StartListenAsync failed: {ex.Message}");
 
-            // Check if it's a language support error
-            if (ex.Message.Contains("LanguageNotSupported") || ex.Message.Contains("language"))
+            // Language fallback � retry with en-US
+            if (!language.StartsWith("en", StringComparison.OrdinalIgnoreCase))
             {
-                Debug.WriteLine($"[SpeechRecognition] ⚠️ Language '{language}' not supported by device");
-                Debug.WriteLine("[SpeechRecognition] 💡 Trying fallback to English (en-US)...");
-
-                // Try with English as fallback
+                Debug.WriteLine("[STT] ?? Retrying with en-US fallback");
                 try
                 {
-                    var options = new SpeechToTextOptions
+                    var opts = new SpeechToTextOptions
                     {
-                        Culture = CultureInfo.GetCultureInfo("en-US"),
+                        Culture                    = CultureInfo.GetCultureInfo("en-US"),
                         ShouldReportPartialResults = true
                     };
-
-                    await _speechToText.StartListenAsync(options, CancellationToken.None);
-                    Debug.WriteLine("[SpeechRecognition] ✅ Fallback to English successful");
+                    await _speechToText.StartListenAsync(opts, CancellationToken.None);
                     return true;
                 }
                 catch (Exception fallbackEx)
                 {
-                    Debug.WriteLine($"[SpeechRecognition] ❌ English fallback also failed: {fallbackEx.Message}");
+                    Debug.WriteLine($"[STT] ? en-US fallback also failed: {fallbackEx.Message}");
                 }
             }
 
-            Debug.WriteLine("[SpeechRecognition] 🔄 Falling back to simulation mode");
-            IsRealRecognitionAvailable = false; // Disable for this session
-            return true; // Return true so simulation can work
+            IsRealRecognitionAvailable = false;
+            return true; // simulation takes over
         }
     }
 
-    private string NormalizeLanguageCode(string language)
-    {
-        // Map common language codes to Android-supported codes
-        var languageMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            // Filipino/Tagalog variations
-            { "fil", "en-US" },        // Filipino not widely supported, use English
-            { "fil-PH", "en-US" },     // Filipino (Philippines) -> English fallback
-            { "tl", "en-US" },         // Tagalog -> English fallback
-            { "tl-PH", "en-US" },      // Tagalog (Philippines) -> English fallback
-
-            // English variations (all supported)
-            { "en", "en-US" },
-            { "en-US", "en-US" },
-            { "en-GB", "en-GB" },
-            { "en-AU", "en-AU" },
-
-            // Other common languages
-            { "es", "es-ES" },
-            { "fr", "fr-FR" },
-            { "de", "de-DE" },
-            { "zh", "zh-CN" },
-            { "ja", "ja-JP" },
-            { "ko", "ko-KR" }
-        };
-
-        if (languageMap.TryGetValue(language, out var normalized))
-        {
-            if (normalized != language)
-            {
-                Debug.WriteLine($"[SpeechRecognition] 💡 Language '{language}' mapped to '{normalized}' (device limitation)");
-            }
-            return normalized;
-        }
-
-        // If not in map, try to use as-is
-        Debug.WriteLine($"[SpeechRecognition] ⚠️ Unknown language code '{language}', attempting to use as-is");
-        return language;
-    }
-
+    // ?? ISpeechRecognitionService � Stop ??????????????????????????????????????
     public async Task<string?> StopListeningAsync()
     {
-        if (!IsRealRecognitionAvailable)
+        Debug.WriteLine($"[STT] StopListeningAsync � sim={SimulationMode}");
+
+        if (SimulationMode || !IsRealRecognitionAvailable)
         {
-            // Using simulation mode
-            Debug.WriteLine("[SpeechRecognition] 🔄 Stopping simulation, generating result");
-            return await SimulateRecognitionAsync("en-US");
+            // [SIMULATION] Return the partial phrase already generated (or pick a new one)
+            await Task.Delay(400);
+            var result = string.IsNullOrEmpty(_latestPartialResult)
+                ? PickPhrase("fil-PH")
+                : _latestPartialResult;
+            _latestPartialResult = null;
+
+            RaiseResult(result, 0.91, isFinal: true);
+            Debug.WriteLine($"[STT][SIM] ? Final: {result}");
+            return result;
         }
 
+        // ?? PRODUCTION PATH ????????????????????????????????????????????????????
         try
         {
-            Debug.WriteLine("[SpeechRecognition] 🔍 About to stop listening...");
-            Debug.WriteLine($"[SpeechRecognition] 🔍 Current recognized text: '{_recognizedText ?? "null"}'");
-
-            // Stop listening
             await _speechToText.StopListenAsync(CancellationToken.None);
-            Debug.WriteLine("[SpeechRecognition] 🎤 Stopped listening");
+            Debug.WriteLine("[STT] ?? Real recognition stopped");
 
-            // IMPORTANT: Community Toolkit's OnRecognitionResultCompleted event often doesn't fire reliably
-            // Use the partial results collected from OnRecognitionResultUpdated instead
-            // This is the most reliable way to get recognition results
-            var result = _recognizedText;
-            _recognizedText = null;
+            // Best result comes from partial events already stored in _latestPartialResult
+            var result = _latestPartialResult;
+            _latestPartialResult = null;
 
             if (!string.IsNullOrWhiteSpace(result))
-            {
-                Debug.WriteLine($"[SpeechRecognition] ✅ Recognition successful: '{result}'");
-                Debug.WriteLine($"[SpeechRecognition] ✅ Returning result from partial updates");
-                return result;
-            }
-
-            Debug.WriteLine("[SpeechRecognition] ⚠️ No speech detected - empty recognition");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[SpeechRecognition] ❌ Error stopping: {ex.Message}");
-            Debug.WriteLine($"[SpeechRecognition] ❌ Stack trace: {ex.StackTrace}");
-            Debug.WriteLine("[SpeechRecognition] 🔄 Falling back to simulation");
-            IsRealRecognitionAvailable = false;
-            return await SimulateRecognitionAsync("en-US");
-        }
-    }
-
-    public async Task<string?> RecognizeAsync(byte[] audioData, string language = "en-US")
-    {
-        // Community Toolkit doesn't support recognizing from byte array
-        // It listens directly from microphone via ListenAsync
-        // This method is kept for interface compatibility but uses simulation
-        Debug.WriteLine("[SpeechRecognition] ℹ️ RecognizeAsync: Community Toolkit doesn't support byte array input");
-        Debug.WriteLine("[SpeechRecognition] 💡 Use StartListeningAsync() for real recognition from microphone");
-        Debug.WriteLine("[SpeechRecognition] 🔄 Using simulation for this call");
-        return await SimulateRecognitionAsync(language);
-    }
-
-    private async Task<string?> SimulateRecognitionAsync(string language)
-    {
-        try
-        {
-            Debug.WriteLine($"[SpeechRecognition] 🔄 Simulating speech recognition...");
-
-            // Simulate processing time
-            await Task.Delay(500);
-
-            // Simulate recognition with 90% success rate
-            var successRate = _random.NextDouble();
-
-            if (successRate < 0.9) // 90% success
-            {
-                // Return a simulated phrase based on language
-                string simulatedPhrase;
-                if (language.StartsWith("fil") || language.StartsWith("tl"))
-                {
-                    // Tagalog phrases
-                    var tagalogPhrases = new[]
-                    {
-                        "ang aking boses ay aking password",
-                        "pinahihintulutan ko ang transaksyon na ito",
-                        "ito ang aking secure na boses"
-                    };
-                    simulatedPhrase = tagalogPhrases[_random.Next(tagalogPhrases.Length)];
-                }
-                else
-                {
-                    // English phrases
-                    var englishPhrases = new[]
-                    {
-                        "my voice is my password",
-                        "i authorize this transaction",
-                        "this is my secure voice"
-                    };
-                    simulatedPhrase = englishPhrases[_random.Next(englishPhrases.Length)];
-                }
-
-                Debug.WriteLine($"[SpeechRecognition] 🔄 Simulated result: '{simulatedPhrase}'");
-                return simulatedPhrase;
-            }
+                Debug.WriteLine($"[STT] ? Returning: '{result}'");
             else
-            {
-                // Simulate recognition failure (10% of the time)
-                Debug.WriteLine("[SpeechRecognition] 🔄 Simulated recognition failure (no speech detected)");
-                return null;
-            }
+                Debug.WriteLine("[STT] ?? No speech detected");
+
+            return string.IsNullOrWhiteSpace(result) ? null : result;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SpeechRecognition] Recognition failed: {ex.Message}");
+            Debug.WriteLine($"[STT] ? StopListenAsync failed: {ex.Message}");
+            IsRealRecognitionAvailable = false;
             return null;
         }
     }
 
+    // ?? ISpeechRecognitionService � Batch recognise from byte array ???????????
+    public Task<string?> RecognizeAsync(byte[] audioData, string language = "en-US")
+    {
+        // CommunityToolkit does not support batch recognition from a byte array �
+        // it only processes live microphone input. This method supports the interface
+        // contract and returns a simulation result.
+        //
+        // PRODUCTION TODO: pipe audioData to a batch STT endpoint, e.g.:
+        //   POST https://api.deepgram.com/v1/listen  (Deepgram)
+        //   POST https://speech.googleapis.com/v1/speech:recognize  (Google)
+        Debug.WriteLine("[STT] RecognizeAsync: batch mode not supported by toolkit � using simulation");
+        var phrase = audioData.Length > 100 ? PickPhrase(language) : null;
+        return Task.FromResult<string?>(phrase);
+    }
+
+    // ?? ISpeechRecognitionService � Phrase validation ?????????????????????????
     public bool ValidatePhrase(string recognizedText, string expectedPhrase, double threshold = 0.7)
     {
         if (string.IsNullOrWhiteSpace(recognizedText) || string.IsNullOrWhiteSpace(expectedPhrase))
-        {
-            Debug.WriteLine("[SpeechRecognition] Validation failed: empty text");
             return false;
-        }
 
-        var similarity = CalculateSimilarity(recognizedText, expectedPhrase);
-        var isValid = similarity >= threshold;
-
-        Debug.WriteLine($"[SpeechRecognition] Validation: '{recognizedText}' vs '{expectedPhrase}'");
-        Debug.WriteLine($"[SpeechRecognition] Similarity: {similarity:P0} (threshold: {threshold:P0}) - {(isValid ? "✅ PASS" : "❌ FAIL")}");
-
-        return isValid;
+        var sim = CalculateSimilarity(recognizedText, expectedPhrase);
+        var ok  = sim >= threshold;
+        Debug.WriteLine($"[STT] ValidatePhrase: sim={sim:P1} (threshold {threshold:P0}) ? {(ok ? "PASS ?" : "FAIL ?")}");
+        return ok;
     }
 
+    /// <summary>
+    /// Levenshtein-based similarity (0�1).  Normalised so identical strings = 1.0.
+    /// </summary>
     public double CalculateSimilarity(string text1, string text2)
     {
-        if (string.IsNullOrWhiteSpace(text1) || string.IsNullOrWhiteSpace(text2))
-            return 0.0;
+        if (string.IsNullOrWhiteSpace(text1) || string.IsNullOrWhiteSpace(text2)) return 0;
 
-        // Normalize texts
-        var normalized1 = NormalizeText(text1);
-        var normalized2 = NormalizeText(text2);
+        var a = Normalise(text1);
+        var b = Normalise(text2);
+        if (a == b) return 1.0;
 
-        // Calculate Levenshtein distance
-        var distance = LevenshteinDistance(normalized1, normalized2);
-        var maxLength = Math.Max(normalized1.Length, normalized2.Length);
-
-        if (maxLength == 0)
-            return 1.0;
-
-        // Convert distance to similarity score (0.0 to 1.0)
-        var similarity = 1.0 - ((double)distance / maxLength);
-
-        return similarity;
+        var dist = LevenshteinDistance(a, b);
+        var max  = Math.Max(a.Length, b.Length);
+        return max == 0 ? 1.0 : 1.0 - (double)dist / max;
     }
 
-    private string NormalizeText(string text)
+    // ?? Toolkit event forwarders (production) ?????????????????????????????????
+
+    private void OnToolkitResultUpdated(object? sender, SpeechToTextRecognitionResultUpdatedEventArgs e)
     {
-        // Convert to lowercase and remove extra whitespace
-        return string.Join(" ", text.ToLowerInvariant()
-            .Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries));
+        if (string.IsNullOrEmpty(e.RecognitionResult)) return;
+        _latestPartialResult = e.RecognitionResult;
+        Debug.WriteLine($"[STT] Partial: {e.RecognitionResult}");
+        RaiseResult(e.RecognitionResult, 0.85, isFinal: false);
     }
 
-    private int LevenshteinDistance(string s1, string s2)
+    private void OnToolkitResultCompleted(object? sender, SpeechToTextRecognitionResultCompletedEventArgs e)
     {
-        var len1 = s1.Length;
-        var len2 = s2.Length;
-        var matrix = new int[len1 + 1, len2 + 1];
-
-        // Initialize first column and row
-        for (int i = 0; i <= len1; i++)
-            matrix[i, 0] = i;
-        for (int j = 0; j <= len2; j++)
-            matrix[0, j] = j;
-
-        // Calculate distances
-        for (int i = 1; i <= len1; i++)
+        if (e.RecognitionResult?.IsSuccessful == true &&
+            !string.IsNullOrWhiteSpace(e.RecognitionResult.Text))
         {
-            for (int j = 1; j <= len2; j++)
-            {
-                var cost = s1[i - 1] == s2[j - 1] ? 0 : 1;
-
-                matrix[i, j] = Math.Min(
-                    Math.Min(
-                        matrix[i - 1, j] + 1,      // deletion
-                        matrix[i, j - 1] + 1),     // insertion
-                    matrix[i - 1, j - 1] + cost);  // substitution
-            }
+            _latestPartialResult = e.RecognitionResult.Text;
+            Debug.WriteLine($"[STT] Final: {e.RecognitionResult.Text}");
+            RaiseResult(e.RecognitionResult.Text, 0.95, isFinal: true);
         }
+        else
+        {
+            Debug.WriteLine($"[STT] Completed but no result � exception: {e.RecognitionResult?.Exception?.Message ?? "none"}");
+        }
+    }
 
-        return matrix[len1, len2];
+    // ?? Helpers ????????????????????????????????????????????????????????????????
+
+    private void RaiseResult(string text, double confidence, bool isFinal) =>
+        OnRecognitionResultUpdated?.Invoke(this, new RecognitionResultEventArgs
+        {
+            RecognizedText = text,
+            Confidence     = confidence,
+            IsFinal        = isFinal
+        });
+
+    private static string PickPhrase(string language)
+    {
+        bool isFilipino = language.StartsWith("fil", StringComparison.OrdinalIgnoreCase)
+                       || language.StartsWith("tl",  StringComparison.OrdinalIgnoreCase);
+        var pool = isFilipino ? _filipinoPhrases : _englishPhrases;
+        return pool[Random.Shared.Next(pool.Length)];
+    }
+
+    /// <summary>
+    /// Maps Filipino/Tagalog locales to en-US because most Android devices lack a
+    /// fil-PH STT model. Change this when a Filipino STT model is available.
+    /// </summary>
+    private static string NormaliseLanguage(string lang) => lang.ToLowerInvariant() switch
+    {
+        "fil"    => "en-US",
+        "fil-ph" => "en-US",
+        "tl"     => "en-US",
+        "tl-ph"  => "en-US",
+        "en"     => "en-US",
+        _        => lang
+    };
+
+    private static string Normalise(string s) =>
+        string.Join(" ", s.ToLowerInvariant()
+            .Split([' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries));
+
+    private static int LevenshteinDistance(string s1, string s2)
+    {
+        int[,] m = new int[s1.Length + 1, s2.Length + 1];
+        for (int i = 0; i <= s1.Length; i++) m[i, 0] = i;
+        for (int j = 0; j <= s2.Length; j++) m[0, j] = j;
+        for (int i = 1; i <= s1.Length; i++)
+            for (int j = 1; j <= s2.Length; j++)
+                m[i, j] = Math.Min(
+                    Math.Min(m[i - 1, j] + 1, m[i, j - 1] + 1),
+                    m[i - 1, j - 1] + (s1[i - 1] == s2[j - 1] ? 0 : 1));
+        return m[s1.Length, s2.Length];
+    }
+
+    private static bool DetectPlatformAvailability()
+    {
+        try
+        {
+#if ANDROID
+            var api = Android.OS.Build.VERSION.SdkInt;
+            var ok  = api >= Android.OS.BuildVersionCodes.Tiramisu; // API 33
+            Debug.WriteLine($"[STT] Android API {(int)api} � real STT {(ok ? "available" : "requires 33+")}");
+            return ok;
+#elif IOS || MACCATALYST
+            Debug.WriteLine("[STT] iOS/macOS � SFSpeechRecognizer available");
+            return true;
+#elif WINDOWS
+            Debug.WriteLine("[STT] Windows � Windows.Media.SpeechRecognition available");
+            return true;
+#else
+            return false;
+#endif
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

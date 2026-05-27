@@ -64,4 +64,9 @@ public interface ISpeechRecognitionService
     /// Checks if real speech recognition is available
     /// </summary>
     bool IsRealRecognitionAvailable { get; }
+
+    /// <summary>
+    /// Enable simulation mode — returns canned phrases instead of using the microphone.
+    /// </summary>
+    bool SimulationMode { get; set; }
 }

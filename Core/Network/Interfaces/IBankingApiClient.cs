@@ -1,56 +1,47 @@
-namespace BosesApp.Core.Network.Interfaces;
+﻿namespace BosesApp.Core.Network.Interfaces;
 
 /// <summary>
-/// Interface for production banking API client
-/// Replaces mock implementation with real Brankas Open Banking API
+/// Production banking API client interface — Phase 3 (Brankas / UnionBank).
+///
+/// SIMULATION: Register MockBrankasApiClient (already wired) — uses IBankApiClient.
+/// PRODUCTION: Implement this interface against the real Brankas REST API.
+///   Base URL: https://api.brankas.com/v1
+///   Auth:     OAuth 2.0 Bearer token (see BrankasOAuth2Service — to be created)
+///
+/// NOTE: Type names here are prefixed with "Banking" to avoid collision with the
+/// shared models in IBankApiClient.cs (BankAccount, BankTransaction, TransferRequest).
 /// </summary>
 public interface IBankingApiClient
 {
-    /// <summary>
-    /// Authenticate with OAuth 2.0 token
-    /// </summary>
+    /// <summary>Authenticate with OAuth 2.0 access token.</summary>
     Task<bool> AuthenticateAsync(string accessToken);
 
-    /// <summary>
-    /// Get real account information
-    /// </summary>
-    Task<BankAccount> GetAccountAsync(string accountId);
+    /// <summary>Get enhanced account details including account name and currency.</summary>
+    Task<BankingAccount> GetAccountAsync(string accountId);
 
-    /// <summary>
-    /// Get real account balance
-    /// </summary>
+    /// <summary>Get real-time account balance.</summary>
     Task<decimal> GetBalanceAsync(string accountId);
 
-    /// <summary>
-    /// Get real transaction history
-    /// </summary>
-    Task<IEnumerable<BankTransaction>> GetTransactionHistoryAsync(string accountId, int limit = 10);
+    /// <summary>Get paginated transaction history.</summary>
+    Task<IEnumerable<BankingTransaction>> GetTransactionHistoryAsync(string accountId, int limit = 10);
 
-    /// <summary>
-    /// Initiate a real money transfer
-    /// </summary>
-    Task<TransferResponse> InitiateTransferAsync(TransferRequest request);
+    /// <summary>Initiate a fund transfer; may return a pending OTP challenge.</summary>
+    Task<BankingTransferResponse> InitiateTransferAsync(BankingTransferRequest request);
 
-    /// <summary>
-    /// Confirm a transfer with OTP
-    /// </summary>
+    /// <summary>Confirm a transfer with the one-time password sent to the account holder.</summary>
     Task<bool> ConfirmTransferAsync(string transferId, string otp);
 
-    /// <summary>
-    /// Check if service is available
-    /// </summary>
+    /// <summary>Health-check the upstream banking API.</summary>
     Task<bool> IsAvailableAsync();
 
-    /// <summary>
-    /// Get linked accounts for user
-    /// </summary>
-    Task<IEnumerable<LinkedAccount>> GetLinkedAccountsAsync();
+    /// <summary>List all accounts linked to the authenticated user.</summary>
+    Task<IEnumerable<BankingLinkedAccount>> GetLinkedAccountsAsync();
 }
 
-/// <summary>
-/// Request model for money transfer
-/// </summary>
-public class TransferRequest
+// ── DTOs ──────────────────────────────────────────────────────────────────────
+
+/// <summary>Transfer request payload for the production banking API.</summary>
+public class BankingTransferRequest
 {
     public string FromAccountId { get; set; } = string.Empty;
     public string ToAccountId { get; set; } = string.Empty;
@@ -58,13 +49,11 @@ public class TransferRequest
     public string ToAccountName { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public string Description { get; set; } = string.Empty;
-    public string BankCode { get; set; } = "UNIONBANK"; // Default to UnionBank
+    public string BankCode { get; set; } = "UNIONBANK";
 }
 
-/// <summary>
-/// Response model for transfer initiation
-/// </summary>
-public class TransferResponse
+/// <summary>Transfer initiation response — may require OTP confirmation.</summary>
+public class BankingTransferResponse
 {
     public string TransferId { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty; // PENDING, PROCESSING, SUCCESS, FAILED
@@ -73,10 +62,8 @@ public class TransferResponse
     public bool RequiresOtp { get; set; }
 }
 
-/// <summary>
-/// Linked account information
-/// </summary>
-public class LinkedAccount
+/// <summary>A bank account linked to the authenticated user (production model).</summary>
+public class BankingLinkedAccount
 {
     public string AccountId { get; set; } = string.Empty;
     public string AccountNumber { get; set; } = string.Empty;
@@ -86,10 +73,8 @@ public class LinkedAccount
     public decimal Balance { get; set; }
 }
 
-/// <summary>
-/// Bank account model (enhanced)
-/// </summary>
-public class BankAccount
+/// <summary>Enhanced bank account model returned by the production API.</summary>
+public class BankingAccount
 {
     public string AccountId { get; set; } = string.Empty;
     public string AccountNumber { get; set; } = string.Empty;
@@ -101,10 +86,8 @@ public class BankAccount
     public DateTime LastUpdated { get; set; }
 }
 
-/// <summary>
-/// Bank transaction model (enhanced)
-/// </summary>
-public class BankTransaction
+/// <summary>Enhanced transaction model returned by the production API.</summary>
+public class BankingTransaction
 {
     public string TransactionId { get; set; } = string.Empty;
     public DateTime Date { get; set; }

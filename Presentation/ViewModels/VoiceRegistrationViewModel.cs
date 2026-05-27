@@ -162,7 +162,7 @@ public partial class VoiceRegistrationViewModel : ObservableObject
             if (_speechRecognitionService.IsRealRecognitionAvailable)
             {
                 Debug.WriteLine("[VoiceRegistration] ✅ Vosk speech recognition available");
-               
+
             }
             else
             {
@@ -250,7 +250,7 @@ public partial class VoiceRegistrationViewModel : ObservableObject
             var languageCode = _localizationService.CurrentLanguage == Core.Data.Models.AppLanguage.English ? "en-US" : "fil-PH";
             //var recognizedText = await _speechRecognitionService.RecognizeAsync(audioData, languageCode);
 
-            if (_speechRecognitionService.IsRealRecognitionAvailable && !string.IsNullOrWhiteSpace(recognizedText ))
+            if (_speechRecognitionService.IsRealRecognitionAvailable && !string.IsNullOrWhiteSpace(recognizedText))
             {
                 Debug.WriteLine($"[VoiceRegistration] ✅ Using REAL Vosk recognition result: '{recognizedText}'");
             }
@@ -373,7 +373,7 @@ public partial class VoiceRegistrationViewModel : ObservableObject
                 user.VoicePrintData = voicePrint;
                 user.IsVoiceAuthEnabled = true;
                 user.HasCompletedOnboarding = true;
-                
+
                 await _userRepository.UpdateUserAsync(user);
             }
             AudioFeedback = "✅ Step 3/4: Voice profile saved securely";
@@ -432,8 +432,8 @@ public partial class VoiceRegistrationViewModel : ObservableObject
         var mainPage = Application.Current?.Handler?.MauiContext?.Services
                         .GetService<Presentation.Views.MainPage>();
 
-        
-        
+
+
 
         if (mainPage != null && Application.Current?.Windows.FirstOrDefault()?.Page is NavigationPage navPage)
         {
