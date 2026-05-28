@@ -4,19 +4,21 @@ using System.Text.Json;
 namespace BosesApp.Core.Services;
 
 /// <summary>
-/// Guardian notification service implementation
-/// Simulates SMS/push notifications with full audit logging
-/// In production: replace SMS simulation with Twilio/Vonage and FCM push
+/// Guardian notification service implementation.
+/// SMS delivery is delegated to <see cref="ISmsGateway"/> so the provider
+/// can be swapped (SimulatedSmsGateway ? TextBelt ? Twilio) via DI in MauiProgram.cs.
 /// </summary>
 public class GuardianNotificationService : IGuardianNotificationService
 {
+    private readonly ISmsGateway _smsGateway;
     private readonly List<GuardianEvent> _eventLog = new();
     private int _nextEventId = 1;
     private readonly string _logFilePath;
 
-    public GuardianNotificationService()
+    public GuardianNotificationService(ISmsGateway smsGateway)
     {
-        var dataDir = GetDataDirectory();
+        _smsGateway  = smsGateway;
+        var dataDir  = GetDataDirectory();
         _logFilePath = Path.Combine(dataDir, "guardian_events.json");
         LoadEventsFromDisk();
     }
@@ -28,35 +30,36 @@ public class GuardianNotificationService : IGuardianNotificationService
         string transactionDetails,
         string verificationCode)
     {
-        await Task.Delay(400); // Simulate SMS gateway latency
-
-        // In production this would call Twilio / Vonage:
-        // var client = new TwilioRestClient(accountSid, authToken);
-        // await client.Messages.CreateAsync(to: guardianPhone, ...);
-
         var message =
             $"[BOSES ALERT] Hi {guardianName}! " +
-            $"{userName} is requesting your approval for: {transactionDetails}. " +
-            $"Your approval code is: {verificationCode}. " +
+            $"{userName} requests approval for: {transactionDetails}. " +
+            $"Approval code: {verificationCode}. " +
             $"Reply YES to approve or NO to reject. " +
-            $"If you did not expect this, please call {userName} immediately.";
+            $"If unexpected, call {userName} immediately.";
 
-        System.Diagnostics.Debug.WriteLine($"[SMS?{guardianPhone}] {message}");
+        var smsResult = await _smsGateway.SendAsync(guardianPhone, message);
+
+        System.Diagnostics.Debug.WriteLine(
+            $"[Guardian] SMS via {_smsGateway.ProviderName} ? " +
+            $"success={smsResult.Success} id={smsResult.MessageId} quota={smsResult.QuotaRemaining}");
 
         await LogGuardianEventAsync(new GuardianEvent
         {
-            UserId = 0, // resolved by caller
-            EventType = "VERIFICATION_REQUESTED",
-            Description = $"SMS verification sent to guardian {guardianName} ({guardianPhone})",
+            UserId             = 0,
+            EventType          = "VERIFICATION_REQUESTED",
+            Description        = $"SMS sent to {guardianName} ({MaskPhone(guardianPhone)}) via {_smsGateway.ProviderName}" +
+                                  (smsResult.Success ? "" : $" [FAILED: {smsResult.Error}]"),
             TransactionDetails = transactionDetails,
-            Status = "PENDING"
+            Status             = smsResult.Success ? "PENDING" : "SMS_FAILED"
         });
 
         return new GuardianNotificationResult
         {
-            Success = true,
-            Message = $"Verification SMS sent to {guardianName} at {MaskPhone(guardianPhone)}.",
-            NotificationId = Guid.NewGuid().ToString("N")[..8]
+            Success        = smsResult.Success,
+            Message        = smsResult.Success
+                ? $"Verification SMS sent to {guardianName} at {MaskPhone(guardianPhone)} via {_smsGateway.ProviderName}."
+                : $"SMS delivery failed ({smsResult.Error}). Event logged locally.",
+            NotificationId = smsResult.MessageId ?? Guid.NewGuid().ToString("N")[..8]
         };
     }
 
@@ -66,18 +69,15 @@ public class GuardianNotificationService : IGuardianNotificationService
         string body,
         Dictionary<string, string>? data = null)
     {
-        await Task.Delay(200); // Simulate FCM push latency
+        await Task.Delay(200); // Simulate FCM latency
 
         // In production: call Firebase Cloud Messaging API
-        // var fcm = new FirebaseClient(serverKey);
-        // await fcm.SendAsync(new Message { To = guardianUserId, Notification = ... });
-
         System.Diagnostics.Debug.WriteLine($"[PUSH?{guardianUserId}] {title}: {body}");
 
         return new GuardianNotificationResult
         {
-            Success = true,
-            Message = $"Push notification sent: {title}",
+            Success        = true,
+            Message        = $"Push notification sent: {title}",
             NotificationId = Guid.NewGuid().ToString("N")[..8]
         };
     }
@@ -87,30 +87,31 @@ public class GuardianNotificationService : IGuardianNotificationService
         string userName,
         string scamDetails)
     {
-        await Task.Delay(300);
-
         var urgentMessage =
-            $"?? [BOSES SCAM ALERT] URGENT! " +
-            $"A possible scam has been detected for {userName}. " +
+            $"[BOSES SCAM ALERT] URGENT! " +
+            $"Possible scam detected for {userName}. " +
             $"Details: {scamDetails}. " +
-            $"Please contact {userName} immediately to verify!";
+            $"Contact {userName} immediately!";
 
-        System.Diagnostics.Debug.WriteLine($"[SCAM ALERT SMS?{guardianPhone}] {urgentMessage}");
+        var smsResult = await _smsGateway.SendAsync(guardianPhone, urgentMessage);
 
         await LogGuardianEventAsync(new GuardianEvent
         {
-            EventType = "SCAM_ALERT",
-            Description = $"Scam alert sent to guardian ({MaskPhone(guardianPhone)})",
+            EventType          = "SCAM_ALERT",
+            Description        = $"Scam alert sent to guardian ({MaskPhone(guardianPhone)}) via {_smsGateway.ProviderName}" +
+                                  (smsResult.Success ? "" : $" [FAILED: {smsResult.Error}]"),
             TransactionDetails = scamDetails,
-            Status = "ALERTED",
-            WasScamAttempt = true
+            Status             = "ALERTED",
+            WasScamAttempt     = true
         });
 
         return new GuardianNotificationResult
         {
-            Success = true,
-            Message = $"Scam alert sent to guardian at {MaskPhone(guardianPhone)}.",
-            NotificationId = Guid.NewGuid().ToString("N")[..8]
+            Success        = smsResult.Success,
+            Message        = smsResult.Success
+                ? $"Scam alert sent to guardian at {MaskPhone(guardianPhone)}."
+                : $"SMS delivery failed ({smsResult.Error}). Event logged locally.",
+            NotificationId = smsResult.MessageId ?? Guid.NewGuid().ToString("N")[..8]
         };
     }
 
@@ -133,12 +134,12 @@ public class GuardianNotificationService : IGuardianNotificationService
         return Task.FromResult<IEnumerable<GuardianEvent>>(events);
     }
 
-    // ?? Helpers ????????????????????????????????????????????????????????????????
+    // ?? Helpers ???????????????????????????????????????????????????????????????
 
     private static string MaskPhone(string phone)
     {
         if (phone.Length <= 4) return "****";
-        return phone[..^4].Select(_ => '*').Aggregate("", (a, c) => a + c) + phone[^4..];
+        return new string('*', phone.Length - 4) + phone[^4..];
     }
 
     private void LoadEventsFromDisk()

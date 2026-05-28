@@ -40,23 +40,34 @@ BosesApp/
 │   │   ├── Interfaces/
 │   │   │   └── IBankApiClient.cs
 │   │   └── Services/
-│   │       └── MockBrankasApiClient.cs
+│   │       └── MockBankingApiClient.cs
 │   ├── Interfaces/                         # Service contracts
 │   │   ├── IAiOrchestrator.cs
+│   │   ├── IAccessibilityService.cs
+│   │   ├── IAnalyticsService.cs
+│   │   ├── IGuardianNotificationService.cs
 │   │   ├── ILocalizationService.cs
+│   │   ├── ISmsGateway.cs
 │   │   ├── ISpeechRecognitionService.cs
 │   │   ├── IUserRepository.cs
 │   │   ├── IVoiceAuthService.cs
 │   │   └── IVoiceService.cs
 │   └── Services/                           # Service implementations
-│       ├── AiOrchestratorService.cs
+│       ├── AccessibilityService.cs
+│       ├── AiOrchestratorService.cs         # Includes ScamDetectionResult + SimulateScamDetectionAsync
+│       ├── AnalyticsService.cs
 │       ├── AudioAnalysisService.cs
 │       ├── AudioRecordingService.cs
-│       ├── AzureSpeechRecognitionService.cs
+│       ├── DeepgramSpeechRecognitionService.cs
+│       ├── GuardianNotificationService.cs
+│       ├── HybridSpeechRecognitionService.cs
 │       ├── LocalizationService.cs
 │       ├── MauiSpeechRecognitionService.cs
 │       ├── RealVoiceAuthService.cs
+│       ├── SimulatedSmsGateway.cs
 │       ├── SpeechRecognitionService.cs
+│       ├── TelegramNotificationGateway.cs
+│       ├── TextBeltSmsGateway.cs
 │       ├── UserRepository.cs
 │       ├── VoiceAuthService.cs
 │       └── VoiceService.cs
@@ -133,11 +144,46 @@ BosesApp/
 
 ### Prerequisites
 
-- **.NET 9 SDK** or later
-- **Visual Studio 2026** (18.6+) or **Visual Studio 2022** (17.8+) with C# Dev Kit
-- **Android SDK 33+** (for Android development with speech recognition)
-- **Xcode 14+** (for iOS/Mac development, macOS only)
+- **.NET 9 SDK** or later — [Download](https://dotnet.microsoft.com/download/dotnet/9.0)
+- **Visual Studio 2022** (17.8+) with the **.NET Multi-platform App UI** workload — [Download](https://visualstudio.microsoft.com/)
+- **Windows 10 version 1903 (build 19041) or later** — recommended demo platform ✅
 - **Git** for version control
+
+> **Android / iOS** are also supported but require additional setup (Android SDK 33+, Android emulator or physical device, Xcode on macOS). For a quick demo, **Windows is strongly recommended** — no emulator setup needed.
+
+---
+
+### 🗣️ Filipino Language Pack (Recommended for Best Experience)
+
+Boses uses Windows Speech Recognition and Text-to-Speech. Installing the **Filipino (Pilipino)** language pack enables native Tagalog voice input and output.
+
+#### Step 1 — Add Filipino display language
+
+1. Open **Settings** → **Time & Language** → **Language & Region**
+2. Click **Add a language**
+3. Search for **Filipino** and click **Next** → **Install**
+4. Wait for the download to complete (≈ 50–150 MB)
+
+#### Step 2 — Install speech features for Filipino
+
+1. In **Language & Region**, click the **⋯** menu next to **Filipino**
+2. Select **Language options**
+3. Under **Speech**, click **Download** — installs the Filipino TTS voice and speech recogniser
+4. Under **Handwriting** (optional), click **Download**
+
+#### Step 3 — Verify the Filipino voice is available
+
+```powershell
+# Run in PowerShell to list installed TTS voices
+Add-Type -AssemblyName System.Speech
+$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
+$synth.GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }
+# You should see: Microsoft Blessica (or similar Filipino voice)
+```
+
+> **Without the Filipino language pack**, Boses will automatically fall back to an English voice. The app still works fully — speech just won't be in Tagalog.
+
+> **Tip**: After installing, sign out and back in to Windows for the new voice to become available in all apps.
 
 ### Installation
 
@@ -156,22 +202,27 @@ BosesApp/
    dotnet build
    ```
 
-4. **Run on your preferred platform**:
+4. **Run on Windows** (recommended — no emulator needed):
 
-   **Windows:**
-   ```bash
-   dotnet build -t:Run -f net8.0-windows10.0.19041.0
-   ```
+```bash
+dotnet build -t:Run -f net9.0-windows10.0.19041.0
+```
 
-   **Android:**
-   ```bash
-   dotnet build -t:Run -f net8.0-android
-   ```
+Or press **F5** in Visual Studio with the **Windows Machine** target selected.
 
-   **iOS (macOS only):**
-   ```bash
-   dotnet build -t:Run -f net8.0-ios
-   ```
+<details>
+<summary>Other platforms (click to expand)</summary>
+
+**Android** (requires Android SDK 33+ and a running emulator or physical device):
+```bash
+dotnet build -t:Run -f net9.0-android
+```
+
+**iOS** (macOS + Xcode 14+ required):
+```bash
+dotnet build -t:Run -f net9.0-ios
+```
+</details>
 
 ---
 
@@ -180,17 +231,97 @@ BosesApp/
 ### Main Features
 
 1. **Voice Commands** (Tap the microphone button):
-   - "Magkano ang balance ko?" - Check account balance
-   - "Ipadala ang 500 pesos kay Juan" - Transfer money
-   - "Ano ang mga recent transactions ko?" - View transaction history
-   - "Calculate PWD discount for 1000 pesos medicine" - PWD discount calculator
 
-2. **Quick Action Buttons**:
-   - **Balance**: Instantly check your account balance
-   - **Transactions**: View recent transaction history
-   - **PWD Discount**: Calculate PWD discounts
+**💰 Balance & Account**
+- "Magkano ang balance ko?" — Check savings + checking + e-wallet balances
+- "Ano ang laman ng aking account?" — Same, alternative phrasing
+- "Ipakita ang account information ko" — Account details (masked for security)
 
-3. **Simulation Mode** (⚙️ button):
+**💸 Transfer & Send Money**
+- "Mag-transfer ng 500 pesos kay Juan" — Bank-to-bank transfer
+- "Ipadala ang 1000 pesos kay Maria" — Same in Tagalog
+- "Magpadala ng pera kay Pedro" — Transfer without amount (prompts for amount)
+- "Mag-send ng 300 pesos sa GCash" — GCash e-wallet send
+- "I-send ang 500 pesos sa Maya" — Maya e-wallet send
+
+**🏧 Withdraw / ATM**
+- "Mag-withdraw ng 2000 pesos" — ATM withdrawal guide + balance check
+- "Gusto kong mag-withdraw mula sa ATM" — Same without amount
+- "Cash out ng 1500 pesos" — Alternative phrasing
+
+**📜 Transaction History**
+- "Ano ang mga recent transactions ko?" — Last 5 transactions
+- "Ipakita ang kasaysayan ng transaksyon" — Same in Tagalog
+- "Mga nakaraang bayad ko" — Past payments
+
+**🧾 Bill Payment**
+- "Bayaran ang Meralco bill ng 850 pesos" — Electricity bill
+- "Mag-bayad ng Maynilad tubig" — Water bill
+- "Bayad ng PLDT internet" — Internet bill
+- "Bayaran ang SSS / PhilHealth / Pag-IBIG" — Government contributions
+- "Mag-bayad ng kuryente" — Generic electricity payment
+
+**♿ PWD Discount**
+- "Kalkulahin ang PWD discount para sa 1000 pesos na gamot" — 20% medicine discount
+- "PWD discount para sa 500 pesos" — 5% general discount
+- "Magkano ang diskwento ko bilang PWD?" — Discount info
+
+**👴 Senior Citizen Discount**
+- "Senior discount para sa 400 pesos na pagkain" — 20% food discount
+- "Magkano ang senior citizen discount sa 800 pesos na gamot?" — 20% medicine discount
+- "Senior discount" — General discount info
+
+**🏦 Loan Inquiry**
+- "Magkano ang pwede ko pang i-loan?" — Loan eligibility overview
+- "Gusto kong mag-apply ng personal loan" — Personal loan info
+- "Pautang naman" — Tagalog loan request
+
+**🆘 Emergency / Card Block**
+- "I-block ang aking card" — Emergency card block instructions
+- "Nawala ang aking ATM card" — Lost card guidance
+- "Ninakaw ang aking account" — Stolen account response
+
+**ℹ️ Help & Navigation**
+- "Tulong" / "Help" — Full command menu
+- "Ano ang kaya mong gawin?" — List of capabilities
+- "Kumusta Boses!" / "Hello" — Greeting
+- "Kausapin ang agent" — Connect to live support
+
+2. **Quick Action Buttons** (one tap — no voice needed):
+
+**🏦 Banking Row**
+| Button | Simulated Command |
+|---|---|
+| 💰 Balance | "Magkano ang balance ko?" |
+| 📜 Transactions | "Ano ang mga recent transactions ko?" |
+| 💸 Transfer | "Mag-transfer ng 1000 pesos kay Maria" |
+| 🏧 Withdraw | "Mag-withdraw ng 2000 pesos" |
+| 📱 GCash | "Mag-send ng 500 pesos sa GCash" |
+| 🧾 Bills | "Bayaran ang Meralco bill ng 850 pesos" |
+| 🏦 Loan | "Magkano ang pwede ko pang i-loan?" |
+
+**🎯 Discounts & Emergency Row**
+| Button | Simulated Command |
+|---|---|
+| ♿ PWD Discount *(PWD users only)* | "PWD discount para sa 1000 pesos na gamot" |
+| 👴 Senior Discount | "Senior discount para sa 500 pesos na pagkain" |
+| 🆘 Block Card | "Nawala ang aking ATM card" |
+| ℹ️ Help | "Tulong" |
+
+**⚡ Special Features Row**
+| Button | Action |
+|---|---|
+| 🎤 Register Voice | Opens voice biometric enrollment |
+| 🚨 Scam Detection Demo | Runs scripted scam detection |
+| 🔁 Hands-Free (ON/OFF) | Toggles zero-tap continuous voice loop |
+
+3. **🔁 Hands-Free Mode** (🔁 Hands-Free button):
+   - Toggle continuous listen → process → speak loop — no screen taps needed
+   - Mic auto-restarts after each response (up to 8-second listening window)
+   - Exit by voice: say **"stop"**, **"itigil"**, or **"hinto"**
+   - Status indicator turns green when active
+
+4. **Simulation Mode** (⚙️ button):
    - Toggle between simulation and live modes
    - Perfect for demos and testing without real hardware
 
@@ -230,40 +361,106 @@ _voiceAuthService.SimulationMode = true;
 
 ### Mock Data Configuration
 
-Edit `MockBrankasApiClient.cs` to customize:
+Edit `MockBankingApiClient.cs` to customize:
 - Account balances
 - Transaction history
 - Bank account details
 
 ---
 
+### 📬 Telegram Guardian Notifications (Free, Unlimited)
+
+Telegram is the recommended notification provider for demos — completely free with no daily limits.
+
+#### One-Time Setup (5 minutes)
+
+**Step 1 — Create a bot**
+1. Open Telegram → search **@BotFather** → tap **Start**
+2. Send `/newbot` and follow the prompts
+3. Copy the **token** BotFather gives you (format: `7123456789:AAExxxxxxxx`)
+
+**Step 2 — Get the guardian's chat ID**
+1. Have the guardian open Telegram, search for your bot by name, and send any message (e.g. `/start`)
+2. Open this URL in a browser (replace `TOKEN`):
+   ```
+   https://api.telegram.org/bot{TOKEN}/getUpdates
+   ```
+3. In the JSON response, find `"chat":{"id": 123456789}` — that number is the **chat ID**
+
+**Step 3 — Enable in MauiProgram.cs**
+
+In `MauiProgram.cs`, comment out OPTION A and uncomment OPTION B:
+```csharp
+// Comment out:
+// builder.Services.AddSingleton<ISmsGateway, SimulatedSmsGateway>();
+
+// Uncomment and fill in your values:
+builder.Services.AddHttpClient<TelegramNotificationGateway>();
+builder.Services.AddSingleton<ISmsGateway>(sp =>
+    new TelegramNotificationGateway(
+        sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
+        botToken: "7123456789:AAExxxxxxxx",  // ← from @BotFather
+        chatId:   "123456789"               // ← from getUpdates
+    ));
+```
+
+> Guardian will now receive Boses alerts as Telegram messages in real time — including high-risk transaction approvals and scam detection alerts.
+
+---
+
 ## 🧪 Testing Scenarios
 
 ### 1. Balance Inquiry
-**Voice Command**: "Magkano ang balance ko?"  
-**Expected Response**: Account balance in Filipino
+**Voice**: "Magkano ang balance ko?" / "Ano ang laman ng aking account?"  
+**Response**: Savings, checking, and GCash balances in a single reply
 
-### 2. Money Transfer
-**Voice Command**: "Ipadala ang 500 pesos kay Juan"  
-**Expected Flow**: 
-1. AI confirms amount and recipient
-2. Voice authentication prompt
-3. Transaction confirmation
+### 2. Money Transfer (Bank)
+**Voice**: "Mag-transfer ng 1000 pesos kay Maria"  
+**Flow**: Amount + recipient confirmed → voice auth → guardian check if >₱5,000
 
-### 3. Guardian Verification (High-Risk)
-**Voice Command**: "Transfer 10000 pesos"  
-**Expected Flow**:
-1. Risk assessment triggers
-2. Guardian notification sent
-3. Awaits guardian approval code
+### 3. Send to GCash / Maya
+**Voice**: "Mag-send ng 500 pesos sa GCash"  
+**Flow**: Wallet type detected → amount confirmed → identity verification
 
-### 4. PWD Discount
-**Voice Command**: "Calculate PWD discount for 1000 pesos medicine"  
-**Expected Response**: 20% discount calculation (200 PHP off)
+### 4. ATM Withdrawal
+**Voice**: "Mag-withdraw ng 2000 pesos"  
+**Response**: Available balance shown + ATM fee reminder
 
-### 5. Scam Detection
-**Voice Command**: "Urgent! Send 5000 pesos immediately for prize claim"  
-**Expected Response**: Scam warning with safety tips
+### 5. Bill Payment
+**Voice**: "Bayaran ang Meralco bill ng 850 pesos"  
+**Flow**: Biller auto-detected → amount confirmed → guardian check if >₱5,000
+
+### 6. Transaction History
+**Voice**: "Ano ang mga recent transactions ko?"  
+**Response**: Last 5 transactions with date, description, and amount
+
+### 7. PWD Discount Calculator
+**Voice**: "PWD discount para sa 1000 pesos na gamot"  
+**Response**: 20% discount → shows original, discount amount, and final price
+
+### 8. Senior Citizen Discount
+**Voice**: "Senior discount para sa 500 pesos na pagkain"  
+**Response**: 20% food/medicine discount → breakdown shown
+
+### 9. Loan Inquiry
+**Voice**: "Magkano ang pwede ko pang i-loan?"  
+**Response**: Eligible loan products with amounts and terms
+
+### 10. Guardian Verification (High-Risk)
+**Voice**: "Mag-transfer ng 10000 pesos"  
+**Flow**: Risk assessment triggers → guardian SMS sent → awaits approval code
+
+### 11. Emergency Card Block
+**Voice**: "Nawala ang aking ATM card"  
+**Response**: Immediate hotline + steps to block + security alert logged
+
+### 12. Help / Menu
+**Voice**: "Tulong" / "Help"  
+**Response**: Full numbered command menu in Tagalog
+
+### 13. Scam Detection Demo
+**Action**: Tap 🚨 Scam Detection Demo button  
+**Flow**: Scripted scam call → AI analysis → category + red flags + recommended action displayed
 
 ---
 
@@ -384,11 +581,13 @@ Edit `MockBrankasApiClient.cs` to customize:
 - 📁 Location: `Modules/Plugins/GuardianPlugin.cs`
 
 #### 9. **Value Converters for UI**
-- ✅ BoolToColorConverter - Boolean to color binding
-- ✅ BoolToStrokeConverter - Boolean to stroke property binding
-- ✅ EqualToConverter - Equality comparison binding
-- ✅ InvertedBoolConverter - Boolean inversion
-- ✅ StringToBoolConverter - String to boolean parsing
+- ✅ BoolToColorConverter — Boolean to configurable color (`TrueColor`/`FalseColor` properties)
+- ✅ BoolToTextConverter — Boolean to configurable text (`TrueText`/`FalseText` properties), drives mic icon toggle
+- ✅ BoolToStrokeConverter — Boolean to stroke property binding
+- ✅ EqualToConverter — Equality comparison binding
+- ✅ InvertedBoolConverter — Boolean inversion
+- ✅ StringToBoolConverter — String to boolean parsing
+- ✅ IntGreaterThanZeroConverter — Drives guardian alert badge visibility
 - 📁 Location: `Presentation/Converters/`
 
 #### 10. **Platform-Specific Implementations**
@@ -398,7 +597,45 @@ Edit `MockBrankasApiClient.cs` to customize:
 - ✅ macOS Catalyst audio support
 - 📁 Location: `Platforms/*/Services/`
 
-#### 11. **Database Migrations**
+#### 11. **Guardian Notification System** (Phase 5)
+- ✅ Guardian event logging to database
+- ✅ SMS verification simulation with code generation
+- ✅ High-risk transaction detection (>5,000 PHP threshold)
+- ✅ Guardian alert badge (count of today's alerts)
+- ✅ `SCAM_BLOCKED` event type for scam-detection demo
+- 📁 Location: `Core/Services/GuardianNotificationService.cs`
+
+#### 12. **Scam Detection Demo** (Phase 5)
+- ✅ 6 rule-based scam detectors (OTP harvesting, bank impersonation, urgency threats, prize scams, remote access, credential phishing)
+- ✅ Confidence scoring (0–99%)
+- ✅ Scripted scenario rotation (4 realistic Filipino scam scripts)
+- ✅ Full analysis card in conversation history
+- ✅ TTS warning playback
+- 📁 Location: `Core/Services/AiOrchestratorService.cs` → `SimulateScamDetectionAsync`
+- 📁 Location: `Presentation/ViewModels/MainViewModel.cs` → `SimulateScamDemoCommand`
+
+#### 13. **Accessibility Service** (Phase 6)
+- ✅ User accessibility profile load & apply
+- ✅ Screen-reader `AnnounceAsync` for all AI responses
+- 📁 Location: `Core/Services/AccessibilityService.cs`
+
+#### 14. **Hands-Free Mode** (Phase 6)
+- ✅ Continuous listen → process → speak loop (no screen taps required)
+- ✅ Auto mic restart after each response
+- ✅ 8-second per-cycle listening window
+- ✅ Voice exit commands: "stop", "itigil", "tigilan", "hinto"
+- ✅ Re-entrancy guard prevents overlapping loops
+- 📁 Location: `Presentation/ViewModels/MainViewModel.cs` → `ToggleHandsFreeModeCommand`
+
+#### 15. **Analytics Service** (Phase 7)
+- ✅ Screen view tracking
+- ✅ Voice command tracking with latency (ms)
+- ✅ Feature usage tracking per intent
+- ✅ Guardian/scam event tracking
+- ✅ Error event reporting
+- 📁 Location: `Core/Services/AnalyticsService.cs`
+
+#### 16. **Database Migrations**
 - ✅ EF Core migrations with version history
 - ✅ PreferredLanguage column addition
 - ✅ Automatic migration on app startup
@@ -412,17 +649,14 @@ Edit `MockBrankasApiClient.cs` to customize:
 The following production features are designed into the architecture but require external services/APIs:
 
 #### Phase 1: Production Voice Services ⏳
-- [ ] **Deepgram API Integration**
-  - Currently: MAUI Community Toolkit (demo-only)
-  - Setup: Add `DEEPGRAM_API_KEY` to environment
-  - File: `Core/Services/DeepgramSpeechRecognitionService.cs` (to be created)
-  - Improvement: Production-grade STT accuracy
+- [x] **Deepgram API Integration**
+  - Status: Implemented — `Core/Services/DeepgramSpeechRecognitionService.cs`
+  - Setup: Add `DEEPGRAM_API_KEY` to environment / `SpeechConfig.cs`
+  - Features: Real-time streaming STT with WebSocket, language detection
 
-- [ ] **Platform-Native Text-to-Speech (TTS)**
-  - Currently: Simulated voice responses
-  - Android: `TextToSpeech` class
-  - iOS: `AVSpeechSynthesizer`
-  - File: `Core/Services/TextToSpeechService.cs` (to be created)
+- [x] **Hybrid Speech Recognition**
+  - Status: Implemented — `Core/Services/HybridSpeechRecognitionService.cs`
+  - Automatically selects Deepgram (online) or MAUI Community Toolkit (offline)
 
 - [ ] **Advanced Voice Activity Detection (VAD)**
   - Currently: RMS/ZCR-based VAD
@@ -486,14 +720,17 @@ The following production features are designed into the architecture but require
   - Microphone type detection
 
 #### Phase 5: Guardian System (Anti-Scam) ⏳
-- [ ] **SMS Gateway Integration**
-  - Currently: `ImmediateSmsNotification()` simulated
-  - Options: Twilio, Vonage, Globe Labs
-  - File: `Core/Services/SmsGatewayService.cs` (to be created)
-  - Features:
-    - Send OTP to guardian
-    - Risk alerts
-    - High-transaction notifications
+- [x] **SMS / Notification Gateway — Multi-Provider**
+  - `ISmsGateway` abstraction allows zero-code provider swaps in `MauiProgram.cs`
+  - **`SimulatedSmsGateway`** — default, prints to debug console, zero config
+  - **`TelegramNotificationGateway`** ⭐ recommended free option:
+    - 100% free, no credit card, no daily limits
+    - Guardian receives real Telegram push notifications instantly
+    - 5-minute setup via @BotFather
+    - File: `Core/Services/TelegramNotificationGateway.cs`
+  - **`TextBeltSmsGateway`** — real SMS to phone, free tier 1 SMS/day (key=`"textbelt"`)
+  - TextBelt paid: ~$0.01/SMS
+  - Files: `Core/Interfaces/ISmsGateway.cs`, `Core/Services/TelegramNotificationGateway.cs`, `Core/Services/TextBeltSmsGateway.cs`, `Core/Services/SimulatedSmsGateway.cs`
 
 - [ ] **Push Notification Support**
   - Firebase Cloud Messaging (Android)
@@ -578,24 +815,39 @@ All major services follow Interface-Based Design for easy mocking and testing:
 // Core Interfaces
 IAudioRecordingService        → AudioRecordingService
 IAudioAnalysisService         → AudioAnalysisService
-ISpeechRecognitionService     → MauiSpeechRecognitionService
-IVoiceService                 → VoiceService (TTS)
+ISpeechRecognitionService     → HybridSpeechRecognitionService
+                                  ├── DeepgramSpeechRecognitionService (online)
+                                  └── MauiSpeechRecognitionService (offline fallback)
+IVoiceService                 → VoiceService (TTS + mic orchestration)
 IVoiceAuthService             → RealVoiceAuthService
 IUserRepository               → UserRepository
 ILocalizationService          → LocalizationService
-IAiOrchestrator               → AiOrchestratorService (comment out by default)
-IBankApiClient                → MockBrankasApiClient
+IAiOrchestrator               → AiOrchestratorService
+IGuardianNotificationService  → GuardianNotificationService
+IAccessibilityService         → AccessibilityService
+IAnalyticsService             → AnalyticsService
+IBankApiClient                → MockBankingApiClient
 ```
 
 ### 🎯 Testing Scenarios (All Implemented)
 
-| Scenario | Voice Command | Status |
-|----------|---------------|--------|
+| Scenario | Voice Command / Action | Status |
+|----------|------------------------|--------|
 | Balance Inquiry | "Magkano ang balance ko?" | ✅ Working |
-| Money Transfer | "Ipadala ang 500 pesos kay Juan" | ✅ Working |
+| Money Transfer | "Mag-transfer ng 1000 pesos kay Maria" | ✅ Working |
+| GCash / Maya Send | "Mag-send ng 500 pesos sa GCash" | ✅ Working |
+| ATM Withdrawal | "Mag-withdraw ng 2000 pesos" | ✅ Working |
+| Bill Payment | "Bayaran ang Meralco bill ng 850 pesos" | ✅ Working |
 | Transaction History | "Ano ang mga recent transactions ko?" | ✅ Working |
-| PWD Discount | "Calculate PWD discount for 1000 pesos" | ✅ Working |
-| Scam Detection | "Send 5000 pesos for prize claim" | ✅ Working |
+| PWD Discount | "PWD discount para sa 1000 pesos na gamot" | ✅ Working |
+| Senior Discount | "Senior discount para sa 500 pesos na pagkain" | ✅ Working |
+| Loan Inquiry | "Magkano ang pwede ko pang i-loan?" | ✅ Working |
+| Guardian Verification | "Mag-transfer ng 10000 pesos" (>₱5,000) | ✅ Working |
+| Emergency Card Block | "Nawala ang aking ATM card" | ✅ Working |
+| Help / Menu | "Tulong" / "Help" | ✅ Working |
+| Greeting | "Kumusta Boses!" | ✅ Working |
+| Scam Detection Demo | 🚨 Scam Detection Demo button | ✅ Working |
+| Hands-Free Loop | 🔁 Hands-Free button; say "itigil" to stop | ✅ Working |
 | Voice Registration | 3-sample enrollment process | ✅ Working |
 | Language Switch | Switch between English and Filipino | ✅ Working |
 
@@ -625,50 +877,74 @@ IBankApiClient                → MockBrankasApiClient
 - [ ] Add anti-spoofing measures
 
 ### Phase 5: Guardian System
-- [ ] Implement SMS gateway integration (Twilio, Vonage)
-- [ ] Add push notification support
-- [ ] Build guardian dashboard web portal
+- [x] Guardian event logging (`GuardianNotificationService.cs`)
+- [x] SMS/notification gateway abstraction (`ISmsGateway`) with pluggable providers
+- [x] `SimulatedSmsGateway` — zero-config debug logging (default)
+- [x] `TelegramNotificationGateway` — ⭐ free, unlimited, instant push to guardian
+- [x] `TextBeltSmsGateway` — real SMS, free 1/day or paid ~$0.01/SMS
+- [x] SMS verification simulation with code generation
+- [x] High-risk transaction detection (>5,000 PHP threshold)
+- [x] Scam detection simulation demo with 6 rule-based detectors
+- [ ] Real SMS gateway integration (Twilio, Vonage, Globe Labs)
+- [ ] Push notification support (FCM / APNs)
+- [ ] Guardian dashboard web portal
 
----
+### Phase 6: Accessibility Enhancements
+- [x] Accessibility profile load & apply (`AccessibilityService.cs`)
+- [x] Screen-reader announcement via `AnnounceAsync`
+- [x] Hands-Free continuous voice loop for users who cannot tap
+- [ ] TalkBack / VoiceOver optimisation
+- [ ] High contrast mode
+- [ ] Haptic feedback for confirmations
+
+### Phase 7: Analytics & Monitoring
+- [x] Screen view tracking (`AnalyticsService.cs`)
+- [x] Voice command tracking with latency
+- [x] Feature usage tracking
+- [x] Guardian/scam event tracking
+- [x] Error reporting
+- [ ] Application Insights cloud integration
+- [ ] Performance monitoring dashboard
 
 ## 🐛 Troubleshooting
 
-### Speech Recognition Not Triggering
-**Problem**: OnRecognitionResultUpdated event never fires  
+### Speech Recognition Not Working on Windows
+**Problem**: Microphone button does nothing or transcription is always empty  
 **Causes**:
-1. Android API level < 33 (requires Android 13 Tiramisu+)
-2. Microphone permission not granted
-3. MAUI Community Toolkit not initialized
+1. Microphone permission not granted to the app
+2. Filipino language pack not installed (falls back to English)
+3. Default microphone not set correctly
 
 **Solutions**:
-```bash
-# Check Android API level on device/emulator
-adb shell getprop ro.build.version.release
+```
+1. Windows Settings → Privacy & Security → Microphone
+   → Ensure "Let apps access your microphone" is ON
+   → Ensure "Let desktop apps access your microphone" is ON
 
-# Should be 13 or higher
-# If lower, create new emulator with Android 33+ API
+2. Install Filipino language pack (see "Filipino Language Pack" section above)
+
+3. Windows Settings → System → Sound
+   → Set correct input device as Default
+   → Test microphone recording level
 ```
 
-Refer to `SPEECH_RECOGNITION_DIAGNOSTICS.md` for detailed troubleshooting.
+### Windows App Microphone Permission Denied
+**Problem**: `PermissionException` or mic stays silent  
+**Solution**:
+```powershell
+# Check if microphone is accessible
+Get-PnpDevice -Class "AudioEndpoint" | Where-Object { $_.Status -eq "OK" }
+```
+Also check `Package.appxmanifest` includes the `microphone` device capability.
+
+### Filipino TTS Voice Not Speaking Tagalog
+**Problem**: TTS speaks in English even when Filipino commands are used  
+**Solution**: Install the Filipino language pack and speech features (see above).
+After install, sign out and back in to Windows — then relaunch the app.
 
 ### SQLite Database Issues
 **Problem**: "Database is locked" or file access errors  
 **Solution**: Set `useJsonFallback = true` in `MauiProgram.cs`
-
-### Microphone Not Working
-**Problem**: Voice input not captured  
-**Solution**: 
-1. Check platform permissions:
-   - Android: `AndroidManifest.xml` must include `RECORD_AUDIO` permission
-   - iOS: `Info.plist` must include microphone usage description
-2. Verify device microphone is not in use by another app
-3. Enable simulation mode for testing without hardware
-
-**Android Manifest Permissions**:
-```xml
-<uses-permission android:name="android.permission.RECORD_AUDIO" />
-<uses-permission android:name="android.permission.INTERNET" />
-```
 
 ### Build Errors
 **Problem**: NuGet package restore failures  
@@ -679,26 +955,24 @@ dotnet restore --force
 dotnet build
 ```
 
-### Android Deployment Issues
-**Problem**: App crashes on startup  
-**Solutions**:
-1. Ensure Android SDK 21+ is installed
-2. Verify emulator is running with API 33+ for speech recognition
-3. Check that all required permissions are in AndroidManifest.xml
-4. Clear app data: `adb shell pm clear com.boses.accessibility`
-
-**Clear App Data Command**:
-```powershell
-& "C:\Program Files (x86)\Android\android-sdk\platform-tools\adb.exe" shell pm clear com.boses.accessibility
+### Windows Developer Mode Required
+**Problem**: `DEP0700` or sideload errors when deploying  
+**Solution**:
+```
+Windows Settings → Privacy & Security → For developers
+→ Turn on Developer Mode
 ```
 
 ### Language Not Displaying Correctly
-**Problem**: Text showing in wrong language or default language  
+**Problem**: Text showing in wrong language  
 **Solution**:
 1. Check `LocalizationService.cs` for language mapping
 2. Verify language resources are loaded in `InitializeAsync()`
 3. Ensure `PreferredLanguage` column exists in database
-4. Try deleting and recreating user profile
+4. Try deleting the local database:
+```powershell
+Remove-Item -Path "$env:LOCALAPPDATA\Boses\boses.db" -Force -ErrorAction SilentlyContinue
+```
 
 ---
 
@@ -765,35 +1039,198 @@ Additional detailed guides are available:
 
 ---
 
-## 🚀 Quick Debug Commands
+## 🚀 Quick Commands
 
-### Check Emulator Android Version
+### Build and Run (Windows — recommended)
 ```powershell
-adb shell getprop ro.build.version.release
-adb shell getprop ro.build.version.sdk
+dotnet build -t:Run -f net9.0-windows10.0.19041.0
 ```
 
-### View Real-Time Logs
+### Check Installed TTS Voices (verify Filipino voice)
 ```powershell
-adb logcat | Select-String "SpeechRecognition|VoiceRegistration|Audio"
+Add-Type -AssemblyName System.Speech
+$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
+$synth.GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }
 ```
 
-### Clear App and Rebuild
-```powershell
-adb uninstall com.boses.accessibility
-dotnet build -t:Run -f net9.0-android
+### View Real-Time App Logs (Visual Studio Output window)
+```
+Debug → Windows → Output → Show output from: Debug
+Filter by: [Audio] [VoiceService] [Guardian] [TTS]
 ```
 
-### Delete Local Database
+### Delete Local Database (reset app state)
 ```powershell
 Remove-Item -Path "$env:LOCALAPPDATA\Boses\boses.db" -Force -ErrorAction SilentlyContinue
+```
+
+### Force NuGet Restore
+```powershell
+dotnet nuget locals all --clear
+dotnet restore --force
+```
+
+---
+
+## 🖥️ Windows Deployment Guide (No Visual Studio Required)
+
+This guide lets judges or reviewers run Boses on any Windows 10/11 PC **without installing Visual Studio**.
+
+---
+
+### Option A — Run from Source (Developer Machine → Judge PC via USB/share)
+
+> Best when you have access to the judge's PC briefly before the demo.
+
+#### On your developer machine — build the self-contained EXE
+
+```powershell
+dotnet publish BosesApp.csproj `
+  -f net9.0-windows10.0.19041.0 `
+  -c Release `
+  -r win10-x64 `
+  --self-contained true `
+  -p:WindowsPackageType=None `
+  -o .\publish\windows
+```
+
+This produces a `publish\windows\` folder containing `BosesApp.exe` and all dependencies — **no .NET runtime installation needed** on the judge's PC.
+
+#### Transfer to the judge's PC
+
+Copy the entire `publish\windows\` folder via USB drive, network share, or OneDrive.
+
+#### On the judge's PC — enable Developer Mode (one-time, 30 seconds)
+
+```
+Settings → Privacy & Security → For Developers → Developer Mode → ON
+```
+
+> Without Developer Mode, Windows blocks unsigned sideloaded desktop apps.
+
+#### Launch the app
+
+Double-click **`BosesApp.exe`** inside the copied folder.
+
+> If Windows SmartScreen appears, click **More info → Run anyway**. This is expected for unsigned apps.
+
+---
+
+### Option B — Publish a Single-File EXE (easiest to share)
+
+Produces a **single `.exe` file** — no folder needed.
+
+```powershell
+dotnet publish BosesApp.csproj `
+  -f net9.0-windows10.0.19041.0 `
+  -c Release `
+  -r win10-x64 `
+  --self-contained true `
+  -p:WindowsPackageType=None `
+  -p:PublishSingleFile=true `
+  -p:IncludeNativeLibrariesForSelfExtract=true `
+  -o .\publish\single
+```
+
+Share `publish\single\BosesApp.exe` — that one file is the entire app.
+
+> **Note**: First launch extracts files to `%TEMP%` and takes ~5 seconds. Subsequent launches are instant.
+
+---
+
+### Option C — MSIX Package (cleanest install experience)
+
+Produces a proper Windows installer the judge double-clicks to install like any normal app.
+
+#### Prerequisites (on your machine only)
+
+1. Visual Studio 2022 with **Windows App SDK** workload, **or** install the Windows SDK:
+   ```powershell
+   winget install Microsoft.WindowsSDK.10.0.22621
+   ```
+
+2. Create a self-signed certificate for packaging:
+   ```powershell
+   $cert = New-SelfSignedCertificate `
+     -Type CodeSigningCert `
+     -Subject "CN=BosesDemo" `
+     -KeyUsage DigitalSignature `
+     -FriendlyName "Boses Demo Cert" `
+     -CertStoreLocation "Cert:\CurrentUser\My" `
+     -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+
+   $pwd = ConvertTo-SecureString -String "boses123" -Force -AsPlainText
+   Export-PfxCertificate -Cert $cert -FilePath BosesDemo.pfx -Password $pwd
+   Write-Host "Thumbprint: $($cert.Thumbprint)"
+   ```
+
+3. Update `Package.appxmanifest` — set `Publisher` to `CN=BosesDemo`.
+
+#### Build the MSIX
+
+```powershell
+dotnet publish BosesApp.csproj `
+  -f net9.0-windows10.0.19041.0 `
+  -c Release `
+  -p:GenerateAppxPackageOnBuild=true `
+  -p:AppxPackageSigningEnabled=true `
+  -p:PackageCertificateKeyFile=BosesDemo.pfx `
+  -p:PackageCertificatePassword=boses123
+```
+
+The `.msix` file is output to `bin\Release\net9.0-windows10.0.19041.0\win10-x64\AppPackages\`.
+
+#### On the judge's PC — install the certificate then the app
+
+```powershell
+# 1. Install the signing certificate (run as Administrator once)
+Import-PfxCertificate -FilePath BosesDemo.pfx `
+  -CertStoreLocation Cert:\LocalMachine\Root `
+  -Password (ConvertTo-SecureString "boses123" -AsPlainText -Force)
+
+# 2. Install the MSIX
+Add-AppxPackage -Path ".\BosesApp_1.0.0.0_x64.msix"
+```
+
+Then launch **Boses** from the Start menu like any installed app.
+
+---
+
+### Minimum Judge PC Requirements
+
+| Requirement | Value |
+|---|---|
+| OS | Windows 10 version 1903 (build 19041) or Windows 11 |
+| Architecture | x64 |
+| RAM | 4 GB minimum, 8 GB recommended |
+| Disk space | ~200 MB (self-contained) |
+| .NET runtime | **Not required** (self-contained publish bundles it) |
+| Visual Studio | **Not required** |
+| Internet | Optional — app runs fully offline in simulation mode |
+| Microphone | Required for live voice input; simulation mode works without it |
+
+---
+
+### Quick Demo Checklist (day-of)
+
+```
+□ Developer Mode ON  (Settings → For Developers)
+□ Microphone permission ON  (Settings → Privacy → Microphone)
+□ Default microphone set  (Settings → Sound → Input device)
+□ Filipino language pack installed  (optional — see Language Pack section)
+□ BosesApp.exe copied to desktop
+□ App launched and welcome message displayed
+□ Simulation Mode pill visible in header (orange "SIM MODE")
+□ Test: tap 💰 Balance button → response appears in chat
+□ Test: tap 🚨 Scam Detection Demo → analysis card appears
+□ Test: tap 🔁 Hands-Free → green mode activates
 ```
 
 ---
 
 ## 📄 License
 
-This project is developed for hackathon/educational purposes. For production use, ensure compliance with:
+This project is developed for passtion/educational purposes. For production use, ensure compliance with:
 - Banking regulations (BSP, PCI-DSS)
 - Data privacy laws (Data Privacy Act of 2012)
 - Accessibility standards (WCAG 2.1)
@@ -802,7 +1239,7 @@ This project is developed for hackathon/educational purposes. For production use
 
 ## 👥 Contributing
 
-This is a hackathon project demonstrating enterprise .NET MAUI architecture. Contributions welcome for:
+This is a passion project demonstrating enterprise .NET MAUI architecture. Contributions welcome for:
 - Additional language support (Cebuano, Ilocano, etc.)
 - Enhanced accessibility features
 - Production API integrations

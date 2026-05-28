@@ -82,19 +82,24 @@ public class AudioRecordingService : IAudioRecordingService
 
     public async Task<bool> StartRecordingAsync()
     {
-        if (_isRecording)
-            return false;
+        // Guard: already recording
+        if (IsRecording)
+        {
+            Debug.WriteLine("[Audio] Already recording — ignoring StartRecordingAsync");
+            return true;
+        }
+
+        // Reset simulation flag each attempt so transient failures don't lock us out permanently
+        _useSimulatedAudio = false;
 
         try
         {
             Debug.WriteLine("[Audio] Starting recording...");
 
-            // Check permissions first
             var hasPermission = await RequestPermissionsAsync();
             if (!hasPermission)
             {
-                Debug.WriteLine("[Audio] ⚠️ Microphone permission not granted");
-                Debug.WriteLine("[Audio] Falling back to simulated audio...");
+                Debug.WriteLine("[Audio] ⚠️ Microphone permission not granted — falling back to simulation");
                 _useSimulatedAudio = true;
             }
 
@@ -107,26 +112,23 @@ public class AudioRecordingService : IAudioRecordingService
 
                     var options = new AudioRecorderOptions
                     {
-                        SampleRate = RecordSampleRate,
-                        BitDepth = BitDepth.Pcm16bit,
-                        Channels = ChannelType.Mono,
+                        SampleRate          = RecordSampleRate,
+                        BitDepth            = BitDepth.Pcm16bit,
+                        Channels            = ChannelType.Mono,
                         ThrowIfNotSupported = false   // gracefully fall back if platform can't honour request
                     };
 
                     _audioRecorder = _audioManager.CreateRecorder();
-                    await _audioRecorder.StartAsync(options
-                        );
+                    await _audioRecorder.StartAsync(options);
                     _recordingStartTime = DateTime.Now;
-                    Debug.WriteLine("[Audio] ✅ REAL recording started from microphone!");
+                    Debug.WriteLine($"[Audio] ✅ REAL recording started — {RecordSampleRate} Hz / 16-bit / mono");
                     return true;
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[Audio] ⚠️ Real recording failed: {ex.Message}");
-                    Debug.WriteLine("[Audio] Falling back to simulated audio...");
+                    Debug.WriteLine($"[Audio] ⚠️ Real recording failed: {ex.Message} — falling back to simulation");
+                    _audioRecorder     = null;
                     _useSimulatedAudio = true;
-                    
-                    _audioRecorder = null;
                 }
             }
 #endif
@@ -147,91 +149,77 @@ public class AudioRecordingService : IAudioRecordingService
 
     public async Task<byte[]> StopRecordingAsync()
     {
-        if (!_isRecording
-#if WINDOWS || ANDROID || IOS || MACCATALYST
-            && _audioRecorder == null
-#endif
-            )
+        if (!IsRecording)
+        {
+            Debug.WriteLine("[Audio] StopRecordingAsync called but not recording");
             return Array.Empty<byte>();
+        }
 
         try
         {
             Debug.WriteLine("[Audio] Stopping recording...");
 
 #if WINDOWS || ANDROID || IOS || MACCATALYST
-            // Try to stop real recording first
             if (_audioRecorder != null && !_useSimulatedAudio)
             {
                 try
                 {
                     var audioSource = await _audioRecorder.StopAsync();
 
-                    // Read audio data from stream
-                    using var stream = audioSource.GetAudioStream();
+                    using var stream       = audioSource.GetAudioStream();
                     using var memoryStream = new MemoryStream();
                     await stream.CopyToAsync(memoryStream);
 
-                    var audioData = memoryStream.ToArray();
-
-                    Debug.WriteLine($"[Audio] ✅ REAL recording stopped. Captured {audioData.Length} bytes from microphone!");
-
-                    // Cleanup
-                    //_audioRecorder?.Dispose();
+                    var audioData  = memoryStream.ToArray();
                     _audioRecorder = null;
+                    _isRecording   = false;
 
+                    Debug.WriteLine($"[Audio] ✅ REAL recording stopped — {audioData.Length} bytes captured from microphone");
                     return audioData;
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[Audio] ⚠️ Failed to stop real recording: {ex.Message}");
-                    Debug.WriteLine("[Audio] Falling back to simulated audio...");
-                    //_audioRecorder?.Dispose();
-                    _audioRecorder = null;
+                    Debug.WriteLine($"[Audio] ⚠️ Failed to stop real recording: {ex.Message} — falling back to simulation");
+                    _audioRecorder     = null;
+                    _isRecording       = false;
                     _useSimulatedAudio = true;
                 }
             }
 #endif
 
-            // Fallback to simulated audio
+            // Simulation fallback
             _isRecording = false;
-
-            // Simulate recording delay
             await Task.Delay(100);
 
-            // Generate simulated audio data
             var simulatedData = GenerateSimulatedAudio();
-            Debug.WriteLine($"[Audio] 🔄 Simulated recording stopped. Generated {simulatedData.Length} bytes");
+            Debug.WriteLine($"[Audio] 🔄 Simulated recording stopped — {simulatedData.Length} bytes generated");
             return simulatedData;
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[Audio] Failed to stop recording: {ex.Message}");
+            _isRecording   = false;
+            _audioRecorder = null;
             return Array.Empty<byte>();
         }
     }
 
     /// <summary>
-    /// Generates simulated audio data
-    /// Creates 5 seconds of 16kHz, 16-bit, mono audio
-    /// Sufficient for voice biometric feature extraction and testing
+    /// Generates 3 seconds of near-silent PCM at 16 kHz / 16-bit / mono.
+    /// Matches the WAV header parameters so Deepgram can decode it cleanly,
+    /// though it will return an empty transcript (no real speech).
     /// </summary>
-    private byte[] GenerateSimulatedAudio()
+    private static byte[] GenerateSimulatedAudio()
     {
-        // Generate simulated audio data (5 seconds at 16kHz, 16-bit, mono)
-        var sampleRate = 16000;
-        var duration = 5; // seconds
-        var bytesPerSample = 2; // 16-bit
-        var totalBytes = sampleRate * duration * bytesPerSample;
+        const int duration = 3;
+        var totalBytes     = RecordSampleRate * duration * 2; // 16-bit = 2 bytes per sample
+        var audioData      = new byte[totalBytes];
 
-        var audioData = new byte[totalBytes];
-        var random = new Random();
-
-        // Generate random audio data (simulates voice)
         for (int i = 0; i < totalBytes; i += 2)
         {
-            // Generate 16-bit sample with some variation
-            short sample = (short)(random.Next(-1000, 1000));
-            audioData[i] = (byte)(sample & 0xFF);
+            // Very low-amplitude noise — keeps the format valid without fooling Deepgram
+            short sample     = (short)Random.Shared.Next(-80, 80);
+            audioData[i]     = (byte)(sample & 0xFF);
             audioData[i + 1] = (byte)((sample >> 8) & 0xFF);
         }
 

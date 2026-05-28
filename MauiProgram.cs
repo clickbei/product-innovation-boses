@@ -50,6 +50,42 @@ public static class MauiProgram
         //   iOS/macOS → SFSpeechRecognizer
         builder.Services.AddSingleton<CommunityToolkit.Maui.Media.ISpeechToText>(CommunityToolkit.Maui.Media.SpeechToText.Default);
 
+        // ── SMS / Notification Gateway ───────────────────────────────────────────
+        // OPTION A — Simulated (default): prints to debug console, zero config.
+        builder.Services.AddSingleton<ISmsGateway, SimulatedSmsGateway>();
+        //
+        // OPTION B — Telegram Bot (RECOMMENDED FREE OPTION — unlimited, no credit card):
+        //   Setup (5 min):
+        //     1. Open Telegram → search @BotFather → send /newbot → copy TOKEN
+        //     2. Guardian opens Telegram, finds your bot, sends any message
+        //     3. Visit https://api.telegram.org/bot{TOKEN}/getUpdates
+        //        Look for "chat":{"id": 123456789} — that is the CHAT_ID
+        //     4. Replace the values below and uncomment these lines.
+        //   To enable: comment out OPTION A, uncomment the lines below.
+        // builder.Services.AddHttpClient<TelegramNotificationGateway>();
+        // builder.Services.AddSingleton<ISmsGateway>(sp =>
+        //     new TelegramNotificationGateway(
+        //         sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
+        //         botToken: "YOUR_BOT_TOKEN",   // from @BotFather
+        //         chatId:   "GUARDIAN_CHAT_ID"  // from getUpdates
+        //     ));
+        //
+        // OPTION C — TextBelt free tier (1 SMS/day to real phone, no sign-up):
+        //   Key = "textbelt" (literal). Useful if guardian has no Telegram.
+        // builder.Services.AddHttpClient<TextBeltSmsGateway>();
+        // builder.Services.AddSingleton<ISmsGateway>(sp =>
+        //     new TextBeltSmsGateway(
+        //         sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
+        //         apiKey: "textbelt"
+        //     ));
+        //
+        // OPTION D — TextBelt PAID (~$0.01/SMS, buy at https://textbelt.com):
+        // builder.Services.AddSingleton<ISmsGateway>(sp =>
+        //     new TextBeltSmsGateway(
+        //         sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
+        //         apiKey: "YOUR_PURCHASED_KEY"
+        //     ));
+
         // Register core services
         builder.Services.AddSingleton<IVoiceService, VoiceService>();
         builder.Services.AddSingleton<IAudioRecordingService, AudioRecordingService>();
