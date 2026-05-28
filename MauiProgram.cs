@@ -1,6 +1,5 @@
-using BosesApp.Core.Data;
+﻿using BosesApp.Core.Data;
 using BosesApp.Core.Interfaces;
-using BosesApp.Core.Network.Interfaces;
 using BosesApp.Core.Network.Interfaces;
 using BosesApp.Core.Network.Services;
 using BosesApp.Core.Services;
@@ -45,6 +44,12 @@ public static class MauiProgram
         builder.Services.AddSingleton(AudioManager.Current);
 #endif
 
+        // Register CommunityToolkit ISpeechToText — routes to native platform APIs:
+        //   Windows  → Windows.Media.SpeechRecognition
+        //   Android  → SpeechRecognizer (API 33+)
+        //   iOS/macOS → SFSpeechRecognizer
+        builder.Services.AddSingleton<CommunityToolkit.Maui.Media.ISpeechToText>(CommunityToolkit.Maui.Media.SpeechToText.Default);
+
         // Register core services
         builder.Services.AddSingleton<IVoiceService, VoiceService>();
         builder.Services.AddSingleton<IAudioRecordingService, AudioRecordingService>();
@@ -59,9 +64,24 @@ public static class MauiProgram
         builder.Services.AddSingleton<IAccessibilityService, AccessibilityService>();
         builder.Services.AddSingleton<IAnalyticsService, AnalyticsService>();
 
-        // Register .NET MAUI Community Toolkit Speech Recognition (FREE, easy setup!)
-        builder.Services.AddSingleton(CommunityToolkit.Maui.Media.SpeechToText.Default);
-        builder.Services.AddSingleton<ISpeechRecognitionService, MauiSpeechRecognitionService>();
+        // Register Deepgram as a concrete service (Tier 2 — cloud STT for Tagalog + English fallback)
+        // Free tier: 12,000 minutes/year — https://console.deepgram.com
+        // 🔑 Regenerate your key at console.deepgram.com and paste the new one below.
+        builder.Services.AddSingleton<DeepgramSpeechRecognitionService>(sp =>
+            new DeepgramSpeechRecognitionService(
+                sp.GetRequiredService<IAudioRecordingService>(),
+                apiKey: DeepgramSpeechRecognitionService.DefaultApiKey
+            ));
+
+        // Register HybridSpeechRecognitionService as ISpeechRecognitionService
+        // Tier 1: Native platform STT via CommunityToolkit (Windows / Android API 33+ / iOS)
+        // Tier 2: Deepgram cloud (Tagalog + English fallback, or when Tier 1 unavailable)
+        // Tier 3: Simulation (canned phrases, when both tiers are unavailable)
+        builder.Services.AddSingleton<ISpeechRecognitionService>(sp =>
+            new HybridSpeechRecognitionService(
+                sp.GetRequiredService<CommunityToolkit.Maui.Media.ISpeechToText>(),
+                sp.GetRequiredService<DeepgramSpeechRecognitionService>()
+            ));
 
         // Register plugins
         builder.Services.AddSingleton<BankingPlugin>();
