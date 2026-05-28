@@ -10,6 +10,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
+    <!-- Suppress duplicate assembly attribute errors from SDK multi-TFM builds -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+
     <!-- Display name -->
     <ApplicationTitle>Boses</ApplicationTitle>
 

@@ -2,231 +2,300 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BosesApp.Presentation.ViewModels"
+             xmlns:converters="clr-namespace:BosesApp.Presentation.Converters"
              x:Class="BosesApp.Presentation.Views.MainPage"
              x:DataType="vm:MainViewModel"
              Title="Boses - Voice Assistant"
-             BackgroundColor="#F5F5F5">
+             BackgroundColor="#F0F4F8">
 
-    <Grid RowDefinitions="Auto,*,Auto,Auto" Padding="20">
+    <ContentPage.Resources>
+        <vm:BoolToColorConverter x:Key="BoolToColorConv" TrueColor="#E74C3C" FalseColor="#2ECC71"/>
+        <vm:BoolToTextConverter  x:Key="BoolToTextConv"  TrueText="⏹️"      FalseText="🎤"/>
+        <converters:InvertedBoolConverter       x:Key="InvertBool"/>
+        <converters:IntGreaterThanZeroConverter x:Key="IntGtZero"/>
+    </ContentPage.Resources>
 
-        <!-- Header Section -->
-        <VerticalStackLayout Grid.Row="0" Spacing="10" Margin="0,20,0,20">
-            <Label Text="🎤 Boses"
-                   FontSize="32"
-                   FontAttributes="Bold"
-                   HorizontalOptions="Center"
-                   TextColor="#2C3E50"/>
+    <AbsoluteLayout>
 
-            <Label Text="{Binding CurrentUserName, StringFormat='Welcome, {0}'}"
-                   FontSize="16"
-                   HorizontalOptions="Center"
-                   TextColor="#7F8C8D"/>
+        <!-- Main scrollable content -->
+        <ScrollView AbsoluteLayout.LayoutFlags="All"
+                    AbsoluteLayout.LayoutBounds="0,0,1,1">
+        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Padding="16,10,16,20">
 
-            <Label Text="{Binding StatusMessage}"
-                   FontSize="14"
-                   HorizontalOptions="Center"
-                   TextColor="#3498DB"
-                   FontAttributes="Italic"/>
-        </VerticalStackLayout>
+            <!-- ── Header ──────────────────────────────────────────────────── -->
+            <VerticalStackLayout Grid.Row="0" Spacing="4" Margin="0,16,0,8">
 
-        <!-- Conversation History -->
-        <Border Grid.Row="1"
-                BackgroundColor="White"
-                Stroke="#E0E0E0"
-                StrokeThickness="1"
-                Margin="0,10">
-            <Border.StrokeShape>
-                <RoundRectangle CornerRadius="15"/>
-            </Border.StrokeShape>
+                <Label Text="🎤 Boses"
+                       FontSize="30"
+                       FontAttributes="Bold"
+                       HorizontalOptions="Center"
+                       TextColor="#2C3E50"/>
 
-            <CollectionView ItemsSource="{Binding ConversationHistory}"
-                           Margin="15">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="vm:ConversationMessage">
-                        <Grid Padding="0,5" ColumnDefinitions="Auto,*">
-                            <BoxView Grid.Column="0"
-                                    WidthRequest="4"
-                                    HeightRequest="40"
-                                    VerticalOptions="Start"
-                                    Margin="0,5,10,0">
-                                <BoxView.Color>
-                                    <Binding Path="IsUser">
-                                        <Binding.Converter>
-                                            <vm:BoolToColorConverter TrueColor="#3498DB" FalseColor="#2ECC71"/>
-                                        </Binding.Converter>
-                                    </Binding>
-                                </BoxView.Color>
-                            </BoxView>
+                <Label Text="{Binding CurrentUserName, StringFormat='Welcome, {0}'}"
+                       FontSize="15"
+                       HorizontalOptions="Center"
+                       TextColor="#7F8C8D"/>
 
-                            <VerticalStackLayout Grid.Column="1" Spacing="5">
-                                <Label Text="{Binding Sender}"
-                                      FontSize="12"
-                                      FontAttributes="Bold"
-                                      TextColor="#2C3E50"/>
-                                <Label Text="{Binding Message}"
-                                      FontSize="14"
-                                      TextColor="#34495E"
-                                      LineBreakMode="WordWrap"/>
-                                <Label Text="{Binding Timestamp, StringFormat='{0:hh:mm tt}'}"
-                                      FontSize="10"
-                                      TextColor="#95A5A6"/>
-                            </VerticalStackLayout>
-                        </Grid>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
+                <!-- Status + mode row -->
+                <HorizontalStackLayout HorizontalOptions="Center" Spacing="10">
+                    <Label Text="{Binding StatusMessage}"
+                           FontSize="13"
+                           TextColor="#3498DB"
+                           FontAttributes="Italic"
+                           VerticalOptions="Center"/>
 
-                <CollectionView.EmptyView>
-                    <VerticalStackLayout HorizontalOptions="Center"
-                                       VerticalOptions="Center"
-                                       Spacing="10">
-                        <Label Text="👋"
-                              FontSize="48"
-                              HorizontalOptions="Center"/>
-                        <Label Text="Start a conversation"
-                              FontSize="16"
-                              TextColor="#95A5A6"
-                              HorizontalOptions="Center"/>
-                        <Label Text="Tap the microphone button below"
-                              FontSize="12"
-                              TextColor="#BDC3C7"
-                              HorizontalOptions="Center"/>
-                    </VerticalStackLayout>
-                </CollectionView.EmptyView>
-            </CollectionView>
-        </Border>
+                    <!-- Simulation mode pill -->
+                    <Border BackgroundColor="#F39C12"
+                            Padding="8,3"
+                            IsVisible="{Binding IsSimulationMode}">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10"/>
+                        </Border.StrokeShape>
+                        <Label Text="SIM MODE" FontSize="10" TextColor="White" FontAttributes="Bold"/>
+                    </Border>
 
-        <!-- Quick Action Buttons -->
-        <Grid Grid.Row="2" Margin="0,15">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="10"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+                    <!-- Guardian alerts badge -->
+                    <Border BackgroundColor="#E74C3C"
+                            Padding="8,3"
+                            IsVisible="{Binding GuardianAlertsToday, Converter={StaticResource IntGtZero}}">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10"/>
+                        </Border.StrokeShape>
+                        <Label Text="{Binding GuardianAlertsToday, StringFormat='🛡️ {0} alerts'}"
+                               FontSize="10" TextColor="White" FontAttributes="Bold"/>
+                    </Border>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
 
-            <!-- First Row -->
-            <HorizontalStackLayout Grid.Row="0"
-                                  Spacing="10"
-                                  HorizontalOptions="Center">
-                <Button Text="Balance"
-                       Command="{Binding SimulateVoiceInputCommand}"
-                       CommandParameter="Magkano ang balance ko?"
-                       BackgroundColor="#3498DB"
-                       TextColor="White"
-                       CornerRadius="20"
-                       Padding="20,10"/>
+            <!-- ── Quick Actions — Row 1 ───────────────────────────────────── -->
+            <VerticalStackLayout Grid.Row="1" Spacing="8" Margin="0,4,0,8">
 
-                <Button Text="Transactions"
-                       Command="{Binding SimulateVoiceInputCommand}"
-                       CommandParameter="Ano ang mga recent transactions ko?"
-                       BackgroundColor="#9B59B6"
-                       TextColor="White"
-                       CornerRadius="20"
-                       Padding="20,10"/>
+                <!-- Label -->
+                <Label Text="Quick Actions"
+                       FontSize="12"
+                       FontAttributes="Bold"
+                       TextColor="#95A5A6"
+                       Margin="4,0"/>
 
-                <Button Text="PWD Discount"
-                       Command="{Binding SimulateVoiceInputCommand}"
-                       CommandParameter="Calculate PWD discount for 1000 pesos medicine"
-                       BackgroundColor="#E67E22"
-                       TextColor="White"
-                       CornerRadius="20"
-                       Padding="20,10"
-                       IsVisible="{Binding IsPwd}"/>
-            </HorizontalStackLayout>
+                <!-- Row A: Banking -->
+                <FlexLayout Wrap="Wrap" JustifyContent="Center" AlignItems="Center">
 
-            <!-- Second Row -->
-            <Button Grid.Row="2"
-                   Text="🎤 Register Voice"
-                   Command="{Binding RegisterVoiceCommand}"
-                   BackgroundColor="#E74C3C"
-                   TextColor="White"
-                   CornerRadius="20"
-                   Padding="20,10"
-                   HorizontalOptions="Center"
-                   FontAttributes="Bold"/>
-        </Grid>
+                    <Button Text="💰 Balance"
+                            Command="{Binding SimulateVoiceInputCommand}"
+                            CommandParameter="Magkano ang balance ko?"
+                            BackgroundColor="#3498DB" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"/>
 
-        <!-- Main Voice Button -->
-        <Grid Grid.Row="3" Margin="0,20,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+                    <Button Text="📜 Transactions"
+                            Command="{Binding SimulateVoiceInputCommand}"
+                            CommandParameter="Ano ang mga recent transactions ko?"
+                            BackgroundColor="#9B59B6" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"/>
 
-            <!-- Clear Button -->
-            <Button Grid.Column="0"
-                   Text="Clear"
-                   Command="{Binding ClearConversationCommand}"
-                   BackgroundColor="#E74C3C"
-                   TextColor="White"
-                   CornerRadius="25"
-                   WidthRequest="100"
-                   HeightRequest="50"
-                   HorizontalOptions="End"
-                   Margin="0,0,10,0"/>
+                    <Button Text="💸 Transfer"
+                            Command="{Binding SimulateVoiceInputCommand}"
+                            CommandParameter="Mag-transfer ng 1000 pesos kay Maria"
+                            BackgroundColor="#1ABC9C" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"/>
 
-            <!-- Voice Button -->
-            <Border Grid.Column="1"
-                   WidthRequest="100"
-                   HeightRequest="100"
-                   BackgroundColor="#2ECC71"
-                   HorizontalOptions="Center"
-                   VerticalOptions="Center">
+                    <Button Text="🏧 Withdraw"
+                            Command="{Binding SimulateVoiceInputCommand}"
+                            CommandParameter="Mag-withdraw ng 2000 pesos"
+                            BackgroundColor="#16A085" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"/>
+
+                    <Button Text="📱 GCash"
+                            Command="{Binding SimulateVoiceInputCommand}"
+                            CommandParameter="Mag-send ng 500 pesos sa GCash"
+                            BackgroundColor="#27AE60" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"/>
+
+                    <Button Text="🧾 Bills"
+                            Command="{Binding SimulateVoiceInputCommand}"
+                            CommandParameter="Bayaran ang Meralco bill ng 850 pesos"
+                            BackgroundColor="#2980B9" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"/>
+
+                    <Button Text="🏦 Loan"
+                            Command="{Binding SimulateVoiceInputCommand}"
+                            CommandParameter="Magkano ang pwede ko pang i-loan?"
+                            BackgroundColor="#8E44AD" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"/>
+
+                </FlexLayout>
+
+                <!-- Row B: Discounts + Emergency + Help -->
+                <FlexLayout Wrap="Wrap" JustifyContent="Center" AlignItems="Center">
+
+                    <Button Text="♿ PWD Discount"
+                            Command="{Binding SimulateVoiceInputCommand}"
+                            CommandParameter="PWD discount para sa 1000 pesos na gamot"
+                            BackgroundColor="#E67E22" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"
+                            IsVisible="{Binding IsPwd}"/>
+
+                    <Button Text="👴 Senior Discount"
+                            Command="{Binding SimulateVoiceInputCommand}"
+                            CommandParameter="Senior discount para sa 500 pesos na pagkain"
+                            BackgroundColor="#D35400" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"/>
+
+                    <Button Text="🆘 Block Card"
+                            Command="{Binding SimulateVoiceInputCommand}"
+                            CommandParameter="Nawala ang aking ATM card"
+                            BackgroundColor="#C0392B" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"/>
+
+                    <Button Text="ℹ️ Help"
+                            Command="{Binding SimulateVoiceInputCommand}"
+                            CommandParameter="Tulong"
+                            BackgroundColor="#7F8C8D" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"/>
+
+                </FlexLayout>
+
+                <!-- Row C: Special features -->
+                <FlexLayout Wrap="Wrap" JustifyContent="Center" AlignItems="Center">
+
+                    <Button Text="🎤 Register Voice"
+                            Command="{Binding RegisterVoiceCommand}"
+                            BackgroundColor="#E74C3C" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"
+                            FontAttributes="Bold"/>
+
+                    <Button Text="🚨 Scam Detection Demo"
+                            Command="{Binding SimulateScamDemoCommand}"
+                            BackgroundColor="#922B21" TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"
+                            FontAttributes="Bold"
+                            SemanticProperties.Hint="Run a simulated scam call detection demo."/>
+
+                    <Button Text="{Binding HandsFreeModeLabel}"
+                            Command="{Binding ToggleHandsFreeModeCommand}"
+                            BackgroundColor="{Binding HandsFreeButtonColor}"
+                            TextColor="White"
+                            CornerRadius="18" Padding="14,8" Margin="4"
+                            FontAttributes="Bold"
+                            SemanticProperties.Hint="Toggle continuous hands-free voice mode. Say stop to exit."/>
+
+                </FlexLayout>
+
+            </VerticalStackLayout>
+
+            <!-- ── Conversation History ────────────────────────────────────── -->
+            <Border Grid.Row="2"
+                    BackgroundColor="White"
+                    Stroke="#E0E0E0"
+                    StrokeThickness="1"
+                    MinimumHeightRequest="200"
+                    Margin="0,4">
                 <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="50"/>
+                    <RoundRectangle CornerRadius="15"/>
                 </Border.StrokeShape>
 
-                <Border.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding ToggleListeningCommand}"/>
-                </Border.GestureRecognizers>
+                <CollectionView ItemsSource="{Binding ConversationHistory}" Margin="12">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ConversationMessage">
+                            <Grid Padding="0,5" ColumnDefinitions="4,*">
 
-                <Label FontSize="48"
-                      HorizontalOptions="Center"
-                      VerticalOptions="Center">
-                    <Label.Text>
-                        <Binding Path="IsListening">
-                            <Binding.Converter>
-                                <vm:BoolToTextConverter TrueText="⏹️" FalseText="🎤"/>
-                            </Binding.Converter>
-                        </Binding>
-                    </Label.Text>
-                </Label>
+                                <BoxView Grid.Column="0"
+                                         HeightRequest="40"
+                                         VerticalOptions="Start"
+                                         Margin="0,5,10,0"
+                                         Color="{Binding IsUser, Converter={StaticResource BoolToColorConv}}"/>
 
-                <!-- Listening Animation -->
-                <Border.Triggers>
-                    <DataTrigger TargetType="Border"
-                                Binding="{Binding IsListening}"
-                                Value="True">
-                        <Setter Property="BackgroundColor" Value="#E74C3C"/>
-                    </DataTrigger>
-                </Border.Triggers>
+                                <VerticalStackLayout Grid.Column="1" Spacing="3">
+                                    <Label Text="{Binding Sender}"
+                                           FontSize="12" FontAttributes="Bold"
+                                           TextColor="#2C3E50"/>
+                                    <Label Text="{Binding Message}"
+                                           FontSize="14" TextColor="#34495E"
+                                           LineBreakMode="WordWrap"/>
+                                    <Label Text="{Binding Timestamp, StringFormat='{0:hh:mm tt}'}"
+                                           FontSize="10" TextColor="#95A5A6"/>
+                                </VerticalStackLayout>
+
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout HorizontalOptions="Center"
+                                             VerticalOptions="Center"
+                                             Spacing="8" Padding="20">
+                            <Label Text="👋" FontSize="48" HorizontalOptions="Center"/>
+                            <Label Text="Tap a Quick Action or the mic to start"
+                                   FontSize="15" TextColor="#95A5A6"
+                                   HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+                            <Label Text="Or enable 🔁 Hands-Free for zero-tap mode"
+                                   FontSize="12" TextColor="#BDC3C7"
+                                   HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+                </CollectionView>
             </Border>
 
-            <!-- Settings Button -->
-            <Button Grid.Column="2"
-                   Text="⚙️"
-                   Command="{Binding ToggleSimulationModeCommand}"
-                   BackgroundColor="#95A5A6"
-                   TextColor="White"
-                   CornerRadius="25"
-                   WidthRequest="100"
-                   HeightRequest="50"
-                   FontSize="24"
-                   HorizontalOptions="Start"
-                   Margin="10,0,0,0"/>
+            <!-- ── Main Voice Controls ────────────────────────────────────── -->
+            <Grid Grid.Row="3" Margin="0,12,0,4"
+                  ColumnDefinitions="Auto,*,Auto">
+
+                <!-- Clear -->
+                <Button Grid.Column="0"
+                        Text="🗑️ Clear"
+                        Command="{Binding ClearConversationCommand}"
+                        BackgroundColor="#E74C3C" TextColor="White"
+                        CornerRadius="22" WidthRequest="90" HeightRequest="44"
+                        HorizontalOptions="Start"/>
+
+                <!-- Mic button -->
+                <Border Grid.Column="1"
+                        WidthRequest="90" HeightRequest="90"
+                        HorizontalOptions="Center" VerticalOptions="Center">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="45"/>
+                    </Border.StrokeShape>
+                    <Border.BackgroundColor>
+                        <Binding Path="IsListening" Converter="{StaticResource BoolToColorConv}"/>
+                    </Border.BackgroundColor>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding ToggleListeningCommand}"/>
+                    </Border.GestureRecognizers>
+                    <Label FontSize="42" HorizontalOptions="Center" VerticalOptions="Center"
+                           Text="{Binding IsListening, Converter={StaticResource BoolToTextConv}}"/>
+                </Border>
+
+                <!-- Settings / mode toggle -->
+                <Button Grid.Column="2"
+                        Text="⚙️ Mode"
+                        Command="{Binding ToggleSimulationModeCommand}"
+                        BackgroundColor="#95A5A6" TextColor="White"
+                        CornerRadius="22" WidthRequest="90" HeightRequest="44"
+                        HorizontalOptions="End"/>
+
+            </Grid>
+
+            <!-- ── Listening hint ─────────────────────────────────────────── -->
+            <Label Grid.Row="4"
+                   Text="🎤 Tap mic to record  •  ⚙️ toggle Sim/Live  •  🔁 Hands-Free: no taps needed"
+                   FontSize="11" TextColor="#BDC3C7"
+                   HorizontalOptions="Center" HorizontalTextAlignment="Center"
+                   Margin="0,0,0,8"/>
+
+        </Grid>
+        </ScrollView>
+
+        <!-- Loading overlay — floats above everything -->
+        <Grid AbsoluteLayout.LayoutFlags="All"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              BackgroundColor="#80000000"
+              IsVisible="{Binding IsBusy}">
+            <ActivityIndicator IsRunning="{Binding IsBusy}"
+                               Color="White"
+                               WidthRequest="60" HeightRequest="60"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"/>
         </Grid>
 
-        <!-- Loading Overlay -->
-        <Grid Grid.RowSpan="4"
-             BackgroundColor="#80000000"
-             IsVisible="{Binding IsBusy}">
-            <ActivityIndicator IsRunning="{Binding IsBusy}"
-                             Color="White"
-                             WidthRequest="60"
-                             HeightRequest="60"
-                             HorizontalOptions="Center"
-                             VerticalOptions="Center"/>
-        </Grid>
-    </Grid>
+    </AbsoluteLayout>
 
 </ContentPage>

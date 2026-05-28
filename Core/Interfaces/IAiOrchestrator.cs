@@ -34,6 +34,36 @@ public interface IAiOrchestrator
     /// Enable simulation mode for testing
     /// </summary>
     bool SimulationMode { get; set; }
+
+    /// <summary>
+    /// Analyse a message for scam signals and return a structured result.
+    /// Used for the scam-detection demo flow.
+    /// </summary>
+    Task<ScamDetectionResult> SimulateScamDetectionAsync(string message);
+}
+
+/// <summary>
+/// Result of the scam-detection analysis
+/// </summary>
+public class ScamDetectionResult
+{
+    /// <summary>True when the message is classified as a scam attempt.</summary>
+    public bool IsScam { get; set; }
+
+    /// <summary>Human-readable scam category, e.g. "OTP Harvesting".</summary>
+    public string Category { get; set; } = string.Empty;
+
+    /// <summary>Confidence score 0–100.</summary>
+    public int ConfidencePercent { get; set; }
+
+    /// <summary>Short explanation shown to the user.</summary>
+    public string Explanation { get; set; } = string.Empty;
+
+    /// <summary>Recommended action for the user.</summary>
+    public string RecommendedAction { get; set; } = string.Empty;
+
+    /// <summary>Specific red-flag phrases found in the message.</summary>
+    public List<string> RedFlags { get; set; } = new();
 }
 
 /// <summary>

@@ -53,6 +53,31 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private int _guardianAlertsToday;
 
+    /// <summary>
+    /// When true, the mic restarts automatically after every response
+    /// so the user never needs to touch the screen.
+    /// Say "stop", "tigilan", or "itigil" to exit by voice.
+    /// </summary>
+    private bool _isHandsFreeMode;
+    public bool IsHandsFreeMode
+    {
+        get => _isHandsFreeMode;
+        set
+        {
+            if (SetProperty(ref _isHandsFreeMode, value))
+            {
+                OnPropertyChanged(nameof(HandsFreeModeLabel));
+                OnPropertyChanged(nameof(HandsFreeButtonColor));
+            }
+        }
+    }
+
+    public string HandsFreeModeLabel   => _isHandsFreeMode ? "🔁 Hands-Free: ON"  : "🔁 Hands-Free: OFF";
+    public Color  HandsFreeButtonColor => _isHandsFreeMode ? Color.FromArgb("#27AE60") : Color.FromArgb("#7F8C8D");
+
+    // Prevents re-entrant hands-free loops
+    private bool _handsFreeLoopRunning;
+
     public ObservableCollection<ConversationMessage> ConversationHistory { get; } = new();
 
     private int _currentUserId = 1; // Default user for demo
@@ -166,6 +191,114 @@ public partial class MainViewModel : ObservableObject
             StatusMessage = $"Error: {ex.Message}";
             IsListening = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task ToggleHandsFreeModeAsync()
+    {
+        IsHandsFreeMode = !IsHandsFreeMode;
+
+        await _analytics.TrackEventAsync("hands_free_toggled",
+            new Dictionary<string, string> { ["enabled"] = IsHandsFreeMode.ToString() });
+
+        if (IsHandsFreeMode)
+        {
+            StatusMessage = "🔁 Hands-Free ON — listening automatically";
+            await _voiceService.SpeakAsync("Hands-free mode on. I'm listening.");
+            await RunHandsFreeCycleAsync();
+        }
+        else
+        {
+            StatusMessage = "🔁 Hands-Free OFF";
+            await _voiceService.SpeakAsync("Hands-free mode off.");
+            if (IsListening)
+            {
+                IsListening = false;
+                await _voiceService.StopListeningAsync();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Continuous listen → process → speak loop.
+    /// Keeps running until <see cref="IsHandsFreeMode"/> is set to false.
+    /// </summary>
+    private async Task RunHandsFreeCycleAsync()
+    {
+        if (_handsFreeLoopRunning) return;
+        _handsFreeLoopRunning = true;
+
+        try
+        {
+            while (IsHandsFreeMode)
+            {
+                // Start mic
+                await StartListeningAsync();
+
+                if (!IsListening)
+                {
+                    await Task.Delay(2000); // mic failed — wait before retry
+                    continue;
+                }
+
+                // Hold mic open up to 8 seconds then auto-stop
+                var timeout = Task.Delay(TimeSpan.FromSeconds(8));
+                while (IsListening && !timeout.IsCompleted)
+                    await Task.Delay(200);
+
+                if (!IsHandsFreeMode) break;
+
+                // Stop and transcribe
+                var transcription = await StopListeningForHandsFreeAsync();
+
+                if (!IsHandsFreeMode) break;
+
+                if (string.IsNullOrWhiteSpace(transcription))
+                {
+                    StatusMessage = "🔁 Listening again...";
+                    await Task.Delay(600);
+                    continue;
+                }
+
+                // Check for voice exit commands
+                if (IsStopCommand(transcription))
+                {
+                    IsHandsFreeMode = false;
+                    StatusMessage   = "🔁 Hands-Free OFF";
+                    await _voiceService.SpeakAsync("Hands-free mode off.");
+                    break;
+                }
+
+                AddMessage("You", transcription, true);
+                await ProcessVoiceCommandAsync(transcription);
+
+                if (!IsHandsFreeMode) break;
+
+                await Task.Delay(600); // brief gap between cycles
+            }
+        }
+        finally
+        {
+            _handsFreeLoopRunning = false;
+        }
+    }
+
+    private static bool IsStopCommand(string text)
+    {
+        var t = text.Trim().ToLowerInvariant();
+        return t is "stop" or "exit" or "quit" or "cancel" or "tigilan" or "itigil" or "hinto";
+    }
+
+    private async Task<string?> StopListeningForHandsFreeAsync()
+    {
+        IsBusy        = true;
+        StatusMessage = "Processing your voice...";
+        var transcription = await _voiceService.StopListeningAsync();
+        IsListening       = false;
+        IsBusy            = false;
+        if (!string.IsNullOrWhiteSpace(transcription))
+            LastTranscription = transcription;
+        return transcription;
     }
 
     private async Task StartListeningAsync()
@@ -284,7 +417,7 @@ public partial class MainViewModel : ObservableObject
 
             StatusMessage = "Speaking response...";
             await _voiceService.SpeakAsync(response);
-            StatusMessage = "Tap to speak again";
+            StatusMessage = IsHandsFreeMode ? "🔁 Listening again..." : "Tap to speak again";
         }
         catch (Exception ex)
         {
@@ -303,13 +436,19 @@ public partial class MainViewModel : ObservableObject
 
     private static AnalyticsFeature MapIntentToFeature(string action) => action switch
     {
-        "BALANCE_INQUIRY"   => AnalyticsFeature.BankBalance,
-        "TRANSFER"          => AnalyticsFeature.BankTransfer,
-        "WITHDRAW"          => AnalyticsFeature.BankTransfer,
-        "TRANSACTION_HISTORY" => AnalyticsFeature.BankTransactions,
-        "PWD_DISCOUNT"      => AnalyticsFeature.PwdDiscount,
-        "BILL_PAYMENT"      => AnalyticsFeature.BankTransfer,
-        _                   => AnalyticsFeature.VoiceCommand
+        "BALANCE_INQUIRY"    => AnalyticsFeature.BankBalance,
+        "TRANSFER"           => AnalyticsFeature.BankTransfer,
+        "WITHDRAW"           => AnalyticsFeature.BankTransfer,
+        "EWALLET_SEND"       => AnalyticsFeature.BankTransfer,
+        "TRANSACTION_HISTORY"=> AnalyticsFeature.BankTransactions,
+        "BILL_PAYMENT"       => AnalyticsFeature.BankTransfer,
+        "PWD_DISCOUNT"       => AnalyticsFeature.PwdDiscount,
+        "SENIOR_DISCOUNT"    => AnalyticsFeature.PwdDiscount,
+        "LOAN_INQUIRY"       => AnalyticsFeature.VoiceCommand,
+        "EMERGENCY_BLOCK"    => AnalyticsFeature.VoiceCommand,
+        "HELP"               => AnalyticsFeature.VoiceCommand,
+        "GREETING"           => AnalyticsFeature.VoiceCommand,
+        _                    => AnalyticsFeature.VoiceCommand
     };
 
     [RelayCommand]
@@ -346,6 +485,124 @@ public partial class MainViewModel : ObservableObject
         LastTranscription = string.Empty;
         AiResponse = string.Empty;
         StatusMessage = "Conversation cleared. Tap to speak.";
+    }
+
+    /// <summary>
+    /// Scripted scam-detection demo.
+    /// Picks a random realistic scam script, "plays" it as an incoming message,
+    /// runs it through scam detection, and displays the full analysis.
+    /// </summary>
+    [RelayCommand]
+    private async Task SimulateScamDemoAsync()
+    {
+        if (IsBusy) return;
+
+        IsBusy = true;
+        StatusMessage = "🚨 Running scam detection demo...";
+
+        try
+        {
+            // Rotate through several realistic scam scenarios
+            var scenarios = new[]
+            {
+                new {
+                    Label = "OTP Harvesting",
+                    Script = "Hello po, ito ay si Mark mula sa BDO Customer Service. " +
+                             "Na-detect namin na may suspicious activity sa inyong account. " +
+                             "Para ma-secure ang inyong account, kailangan naming i-verify ang inyong identity. " +
+                             "Paki-share ang OTP na naka-send sa inyong cellphone."
+                },
+                new {
+                    Label = "Fake Prize Scam",
+                    Script = "Congratulations! Nanalo kayo ng 50,000 pesos sa aming raffle promo. " +
+                             "Para ma-claim ang inyong prize, kailangan munang mag-bayad ng 500 pesos " +
+                             "processing fee sa aming account. Ibigay po ang inyong GCash number."
+                },
+                new {
+                    Label = "Account Suspension Threat",
+                    Script = "URGENT: Ang inyong BPI account ay naka-suspend dahil sa hindi verified na impormasyon. " +
+                             "Kailangan ninyong i-verify ang inyong account number at password ngayon " +
+                             "bago mabura ang inyong account sa loob ng 24 hours."
+                },
+                new {
+                    Label = "Remote Access Scam",
+                    Script = "Hi, this is Maya technical support. We detected malware on your phone. " +
+                             "Please download AnyDesk immediately so our technician can remove it remotely " +
+                             "and secure your account."
+                }
+            };
+
+            var scenario = scenarios[DateTime.Now.Second % scenarios.Length];
+
+            // Step 1 — show the incoming scam message
+            await Task.Delay(500);
+            AddMessage("📞 Incoming Call", scenario.Script, false);
+            StatusMessage = "🔍 Analyzing for scam signals...";
+            await _voiceService.SpeakAsync("Nakatanggap ng mensahe. Ini-analyze para sa scam signals.");
+
+            // Step 2 — run detection
+            var result = await _aiOrchestrator.SimulateScamDetectionAsync(scenario.Script);
+
+            // Step 3 — show analysis result
+            if (result.IsScam)
+            {
+                var redFlagList = result.RedFlags.Count > 0
+                    ? "\n\n🚩 Red Flags:\n• " + string.Join("\n• ", result.RedFlags)
+                    : string.Empty;
+
+                var analysisMessage =
+                    $"🚨 SCAM DETECTED — {result.Category}\n" +
+                    $"Confidence: {result.ConfidencePercent}%\n\n" +
+                    $"📋 {result.Explanation}" +
+                    redFlagList +
+                    $"\n\n✅ What to do: {result.RecommendedAction}";
+
+                AddMessage("🛡️ Boses Shield", analysisMessage, false);
+                await _voiceService.SpeakAsync(
+                    $"Babala! Scam detected. {result.Category}. {result.Explanation} {result.RecommendedAction}");
+
+                // Log as scam-prevented guardian event
+                await _guardianNotification.LogGuardianEventAsync(new GuardianEvent
+                {
+                    UserId             = _currentUserId,
+                    EventType          = "SCAM_BLOCKED",
+                    Description        = $"Scam call blocked: {result.Category}",
+                    TransactionDetails = scenario.Script,
+                    Status             = "BLOCKED"
+                });
+
+                await _analytics.TrackGuardianEventAsync("SCAM_BLOCKED", wasScamPrevented: true);
+                GuardianAlertsToday++;
+
+                StatusMessage = $"🚨 Scam blocked — {result.Category}";
+            }
+            else
+            {
+                var safeMessage =
+                    $"✅ Message appears safe (confidence: {result.ConfidencePercent}% scam likelihood).\n" +
+                    $"{result.Explanation}";
+
+                AddMessage("🛡️ Boses Shield", safeMessage, false);
+                await _voiceService.SpeakAsync("Mukhang ligtas ang mensaheng ito.");
+                StatusMessage = "✅ No scam signals detected";
+            }
+
+            await _analytics.TrackEventAsync("scam_demo_run", new Dictionary<string, string>
+            {
+                ["scenario"] = scenario.Label,
+                ["detected"] = result.IsScam.ToString(),
+                ["category"] = result.Category
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ScamDemo] Error: {ex.Message}");
+            StatusMessage = "Scam demo error";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]

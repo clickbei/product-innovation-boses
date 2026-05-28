@@ -18,10 +18,45 @@ public class VoiceService : IVoiceService
     private string _simulatedInput = string.Empty;
     private readonly List<string> _demoResponses =
     [
+        // Balance
         "Magkano ang balance ko?",
+        "Paki-check ang aking savings account balance",
+        "Ano ang laman ng aking account?",
+        // Transfer
         "Ipadala ang 500 pesos kay Juan",
+        "Mag-transfer ng 1000 pesos kay Maria",
+        "Magpadala ng pera kay Pedro",
+        // Withdraw / ATM
+        "Mag-withdraw ng 2000 pesos",
+        "Gusto kong mag-withdraw mula sa ATM",
+        // Transactions
         "Ano ang mga recent transactions ko?",
-        "Gusto kong mag-transfer ng pera"
+        "Ipakita ang aking kasaysayan ng transaksyon",
+        "Mga nakaraang bayad ko",
+        // Bill payment
+        "Bayaran ang Meralco bill",
+        "Mag-bayad ng kuryente bill ng 850 pesos",
+        "Bayaran ang PLDT internet bill",
+        "Bayad ng Maynilad tubig",
+        // GCash / Maya
+        "Mag-send ng 300 pesos sa GCash",
+        "I-send ang 500 pesos sa Maya",
+        // PWD discount
+        "Kalkulahin ang PWD discount para sa 1000 pesos na gamot",
+        "PWD discount para sa 500 pesos",
+        // Senior discount
+        "Senior citizen discount para sa 400 pesos na pagkain",
+        "Magkano ang senior discount sa 800 pesos na gamot?",
+        // Loan
+        "Magkano ang pwede ko pang i-loan?",
+        "Gusto kong mag-apply ng personal loan",
+        // Help
+        "Ano ang kaya mong gawin?",
+        "Tulong naman",
+        "Help",
+        // Greeting
+        "Kumusta Boses!",
+        "Magandang umaga"
     ];
 
     public bool IsListening => _isListening;
