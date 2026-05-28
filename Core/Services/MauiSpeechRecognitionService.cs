@@ -36,7 +36,7 @@ public class MauiSpeechRecognitionService : ISpeechRecognitionService
     /// FALSE = CommunityToolkit on-device STT (StartListenAsync / StopListenAsync).
     /// Set to false and provide microphone permission to use real recognition.
     /// </summary>
-    public bool SimulationMode { get; set; } = true; // TODO: flip to false on a real device
+    public bool SimulationMode { get; set; } = false; // Set to true to use canned demo phrases instead of the microphone
 
     private readonly ISpeechToText _speechToText;
     private string? _latestPartialResult;
@@ -123,6 +123,16 @@ public class MauiSpeechRecognitionService : ISpeechRecognitionService
 
             await _speechToText.StartListenAsync(opts, CancellationToken.None);
             Debug.WriteLine("[STT] ? Real recognition started");
+            return true;
+        }
+        catch (PermissionException permEx)
+        {
+            // Windows: "Online Speech Recognition Disabled in Privacy Settings"
+            // Fix: Settings ? Privacy & Security ? Speech ? toggle Online Speech Recognition ON
+            Debug.WriteLine($"[STT] ? Speech recognition blocked by OS privacy setting: {permEx.Message}");
+            Debug.WriteLine("[STT] ??  On Windows: Settings ? Privacy & Security ? Speech ? enable Online Speech Recognition");
+            IsRealRecognitionAvailable = false;
+            SimulationMode = true; // fall back to simulation
             return true;
         }
         catch (Exception ex)
