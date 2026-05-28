@@ -1,5 +1,6 @@
 using BosesApp.Core.Data.Models;
 using BosesApp.Core.Interfaces;
+using BosesApp.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
@@ -55,6 +56,7 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<ConversationMessage> ConversationHistory { get; } = new();
 
     private int _currentUserId = 1; // Default user for demo
+    private AppLanguage PreferredLanguage { get; set; }// Default to Tagalog for demo
 
     public MainViewModel(
         IVoiceService voiceService,
@@ -90,6 +92,7 @@ public partial class MainViewModel : ObservableObject
 
             // Load or create default user
             var user = await _userRepository.GetUserByIdAsync(_currentUserId);
+           
             if (user == null)
             {
                 user = await _userRepository.CreateUserAsync(new Core.Data.Models.UserProfile
@@ -106,6 +109,7 @@ public partial class MainViewModel : ObservableObject
             CurrentUserName = user.FullName;
             IsVoiceAuthEnabled = user.IsVoiceAuthEnabled;
             IsPwd = user.UserType == UserType.PWD;
+            PreferredLanguage = user.PreferredLanguage;
 
             // Phase 6 — Accessibility: load and apply profile
             await _accessibilityService.LoadProfileAsync(user.Id);
@@ -167,17 +171,21 @@ public partial class MainViewModel : ObservableObject
     private async Task StartListeningAsync()
     {
         IsBusy = true;
-        StatusMessage = "Starting microphone...";
+        StatusMessage = PreferredLanguage == AppLanguage.Tagalog ? "Simulan ang Mic" :  "Starting microphone...";
+        await _voiceService.SpeakAsync(StatusMessage);
 
         var started = await _voiceService.StartListeningAsync();
+
         if (started)
         {
             IsListening = true;
-            StatusMessage = "🎤 Listening... Speak now";
+            StatusMessage = PreferredLanguage == AppLanguage.Tagalog ? "Nakikinig... Magsalita"  :"Listening... Speak now";
+            await _voiceService.SpeakAsync(StatusMessage);
         }
         else
         {
-            StatusMessage = "Failed to start microphone";
+            StatusMessage = PreferredLanguage == AppLanguage.Tagalog ? "Bigo ang pag start ng microphone"  : "Failed to start microphone";
+            await _voiceService.SpeakAsync(StatusMessage);
         }
 
         IsBusy = false;
@@ -187,10 +195,12 @@ public partial class MainViewModel : ObservableObject
     {
         IsBusy = true;
         StatusMessage = "Processing your voice...";
+        await _voiceService.SpeakAsync(StatusMessage);
 
         var transcription = await _voiceService.StopListeningAsync();
         IsListening = false;
 
+        
         if (string.IsNullOrWhiteSpace(transcription))
         {
             StatusMessage = "No speech detected. Try again.";

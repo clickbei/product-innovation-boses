@@ -138,7 +138,7 @@ public class DeepgramSpeechRecognitionService : ISpeechRecognitionService
         try
         {
             var lang = NormaliseLanguage(language);
-            var url  = $"https://api.deepgram.com/v1/listen?language={lang}&model=nova-2&punctuate=true";
+            var url  = $"https://api.deepgram.com/v1/listen?language={lang}&model=nova-3-general&punctuate=true&encoding=linear16&sample_rate=16000&channels=1";
 
             var content = new ByteArrayContent(audioData);
             content.Headers.ContentType =

@@ -25,19 +25,19 @@ namespace BosesApp.Core.Services;
 public class HybridSpeechRecognitionService : ISpeechRecognitionService
 {
     // ?? Dependencies ???????????????????????????????????????????????????????????
-    private readonly ISpeechToText              _nativeStt;       // Tier 1
+    private readonly ISpeechToText _nativeStt;       // Tier 1
     private readonly DeepgramSpeechRecognitionService _deepgram;  // Tier 2
 
     // ?? State ??????????????????????????????????????????????????????????????????
-    private string  _currentLanguage       = "en-US";
-    private bool    _nativeAvailable;
-    private bool    _usingNative;          // true = current session uses Tier 1
+    private string _currentLanguage = "en-US";
+    private bool _nativeAvailable;
+    private bool _usingNative;          // true = current session uses Tier 1
     private string? _latestPartialResult;
 
     // ?? ISpeechRecognitionService contract ?????????????????????????????????????
     public event EventHandler<RecognitionResultEventArgs>? OnRecognitionResultUpdated;
     public bool IsRealRecognitionAvailable => _nativeAvailable || _deepgram.IsRealRecognitionAvailable;
-    public bool SimulationMode             { get; set; } = false;
+    public bool SimulationMode { get; set; } = false;
 
     // ?? Canned demo phrases (Tier 3 simulation) ????????????????????????????????
     private static readonly string[] _filipinoPhrases =
@@ -62,14 +62,14 @@ public class HybridSpeechRecognitionService : ISpeechRecognitionService
 
     // ?? Constructor ????????????????????????????????????????????????????????????
     public HybridSpeechRecognitionService(
-        ISpeechToText              nativeStt,
+        ISpeechToText nativeStt,
         DeepgramSpeechRecognitionService deepgram)
     {
         _nativeStt = nativeStt;
-        _deepgram  = deepgram;
+        _deepgram = deepgram;
 
         // Wire up CommunityToolkit events for partial/final results (Tier 1)
-        _nativeStt.RecognitionResultUpdated   += OnNativeResultUpdated;
+        _nativeStt.RecognitionResultUpdated += OnNativeResultUpdated;
         _nativeStt.RecognitionResultCompleted += OnNativeResultCompleted;
 
         // Wire up Deepgram events (Tier 2)
@@ -87,9 +87,9 @@ public class HybridSpeechRecognitionService : ISpeechRecognitionService
     // ?? Start ??????????????????????????????????????????????????????????????????
     public async Task<bool> StartListeningAsync(string language = "en-US")
     {
-        _currentLanguage    = language;
+        _currentLanguage = language;
         _latestPartialResult = null;
-        _usingNative        = false;
+        _usingNative = false;
 
         Debug.WriteLine($"[Hybrid] StartListeningAsync — lang={language} sim={SimulationMode}");
 
@@ -121,7 +121,7 @@ public class HybridSpeechRecognitionService : ISpeechRecognitionService
 
                 var opts = new SpeechToTextOptions
                 {
-                    Culture                    = CultureInfo.GetCultureInfo("en-US"),
+                    Culture = CultureInfo.GetCultureInfo("en-US"),
                     ShouldReportPartialResults = true
                 };
 
@@ -235,7 +235,7 @@ public class HybridSpeechRecognitionService : ISpeechRecognitionService
             return false;
 
         var sim = CalculateSimilarity(recognizedText, expectedPhrase);
-        var ok  = sim >= threshold;
+        var ok = sim >= threshold;
         Debug.WriteLine($"[Hybrid] ValidatePhrase: sim={sim:P1} (threshold {threshold:P0}) ? {(ok ? "PASS ?" : "FAIL ?")}");
         return ok;
     }
@@ -243,11 +243,11 @@ public class HybridSpeechRecognitionService : ISpeechRecognitionService
     public double CalculateSimilarity(string text1, string text2)
     {
         if (string.IsNullOrWhiteSpace(text1) || string.IsNullOrWhiteSpace(text2)) return 0;
-        var a    = Normalise(text1);
-        var b    = Normalise(text2);
+        var a = Normalise(text1);
+        var b = Normalise(text2);
         if (a == b) return 1.0;
         var dist = LevenshteinDistance(a, b);
-        var max  = Math.Max(a.Length, b.Length);
+        var max = Math.Max(a.Length, b.Length);
         return max == 0 ? 1.0 : 1.0 - (double)dist / max;
     }
 
@@ -281,18 +281,18 @@ public class HybridSpeechRecognitionService : ISpeechRecognitionService
         OnRecognitionResultUpdated?.Invoke(this, new RecognitionResultEventArgs
         {
             RecognizedText = text,
-            Confidence     = confidence,
-            IsFinal        = isFinal
+            Confidence = confidence,
+            IsFinal = isFinal
         });
 
     private static bool IsFilipino(string language) =>
         language.StartsWith("fil", StringComparison.OrdinalIgnoreCase) ||
-        language.StartsWith("tl",  StringComparison.OrdinalIgnoreCase);
+        language.StartsWith("tl", StringComparison.OrdinalIgnoreCase);
 
     private static string PickPhrase(string language) =>
         IsFilipino(language)
             ? _filipinoPhrases[Random.Shared.Next(_filipinoPhrases.Length)]
-            : _englishPhrases [Random.Shared.Next(_englishPhrases.Length)];
+            : _englishPhrases[Random.Shared.Next(_englishPhrases.Length)];
 
     private static string Normalise(string s) =>
         string.Join(" ", s.ToLowerInvariant()
@@ -322,7 +322,7 @@ public class HybridSpeechRecognitionService : ISpeechRecognitionService
         {
 #if ANDROID
             var api = Android.OS.Build.VERSION.SdkInt;
-            var ok  = api >= Android.OS.BuildVersionCodes.Tiramisu;
+            var ok = api >= Android.OS.BuildVersionCodes.Tiramisu;
             Debug.WriteLine($"[Hybrid] Android API {(int)api} — native STT {(ok ? "available" : "requires API 33+")}");
             return ok;
 #elif IOS || MACCATALYST
