@@ -25,6 +25,8 @@ public interface IAudioRecordingService
 /// </summary>
 public class AudioRecordingService : IAudioRecordingService
 {
+    private const int RecordSampleRate = 16000;
+
 #if WINDOWS || ANDROID || IOS || MACCATALYST
     private readonly IAudioManager? _audioManager;
     private IAudioRecorder? _audioRecorder;
@@ -102,8 +104,18 @@ public class AudioRecordingService : IAudioRecordingService
             {
                 try
                 {
+
+                    var options = new AudioRecorderOptions
+                    {
+                        SampleRate = RecordSampleRate,
+                        BitDepth = BitDepth.Pcm16bit,
+                        Channels = ChannelType.Mono,
+                        ThrowIfNotSupported = false   // gracefully fall back if platform can't honour request
+                    };
+
                     _audioRecorder = _audioManager.CreateRecorder();
-                    await _audioRecorder.StartAsync();
+                    await _audioRecorder.StartAsync(options
+                        );
                     _recordingStartTime = DateTime.Now;
                     Debug.WriteLine("[Audio] ✅ REAL recording started from microphone!");
                     return true;
