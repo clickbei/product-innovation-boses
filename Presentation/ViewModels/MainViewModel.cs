@@ -8,11 +8,6 @@ using System.Diagnostics;
 
 namespace BosesApp.Presentation.ViewModels;
 
-/// <summary>
-/// Main view model for Boses voice interface.
-/// Handles voice interaction, AI orchestration, accessibility, analytics, and guardian protection.
-/// Zero code-behind — all logic encapsulated here.
-/// </summary>
 public partial class MainViewModel : ObservableObject
 {
     private readonly IVoiceService _voiceService;
@@ -22,36 +17,56 @@ public partial class MainViewModel : ObservableObject
     private readonly IGuardianNotificationService _guardianNotification;
     private readonly IAccessibilityService _accessibilityService;
     private readonly IAnalyticsService _analytics;
+    private readonly ILocalizationService _localization;
+    private readonly GoogleTranslationService _translation;
 
-    [ObservableProperty]
-    private string _statusMessage = "Tap the microphone to start";
+    [ObservableProperty] private string _statusMessage = "Tap the microphone to start";
+    [ObservableProperty] private bool   _isListening;
+    [ObservableProperty] private bool   _isBusy;
+    [ObservableProperty] private string _currentUserName = "Guest";
+    [ObservableProperty] private bool   _isVoiceAuthEnabled;
+    [ObservableProperty] private string _lastTranscription = string.Empty;
+    [ObservableProperty] private string _aiResponse = string.Empty;
+    [ObservableProperty] private bool   _isPwd;
+    [ObservableProperty] private bool   _isSimulationMode = true;
+    [ObservableProperty] private int    _guardianAlertsToday;
 
-    [ObservableProperty]
-    private bool _isListening;
+    // ── Language toggle ───────────────────────────────────────────────────────
+    private AppLanguage _activeLanguage = AppLanguage.Tagalog;
+    public AppLanguage ActiveLanguage
+    {
+        get => _activeLanguage;
+        private set
+        {
+            if (SetProperty(ref _activeLanguage, value))
+                RefreshUiStrings();
+        }
+    }
 
-    [ObservableProperty]
-    private bool _isBusy;
+    public bool IsEnglish  => _activeLanguage == AppLanguage.English;
+    public bool IsTagalog  => _activeLanguage == AppLanguage.Tagalog;
+    public string LanguageButtonLabel => _activeLanguage == AppLanguage.English ? "🌐 Filipino" : "🌐 English";
 
-    [ObservableProperty]
-    private string _currentUserName = "Guest";
+    // ── Localized UI strings (bound from XAML) ────────────────────────────────
+    [ObservableProperty] private string _labelBalance      = "💰 Balance";
+    [ObservableProperty] private string _labelTransactions = "📜 Transactions";
+    [ObservableProperty] private string _labelTransfer     = "💸 Transfer";
+    [ObservableProperty] private string _labelWithdraw     = "🏧 Withdraw";
+    [ObservableProperty] private string _labelGCash        = "📱 GCash";
+    [ObservableProperty] private string _labelBills        = "🧾 Bills";
+    [ObservableProperty] private string _labelLoan         = "🏦 Loan";
+    [ObservableProperty] private string _labelPwdDiscount  = "♿ PWD Discount";
+    [ObservableProperty] private string _labelSeniorDiscount = "👴 Senior Discount";
+    [ObservableProperty] private string _labelBlockCard    = "🆘 Block Card";
+    [ObservableProperty] private string _labelHelp         = "ℹ️ Help";
+    [ObservableProperty] private string _labelRegisterVoice   = "🎤 Register Voice";
+    [ObservableProperty] private string _labelScamDemo     = "🚨 Scam Detection Demo";
+    [ObservableProperty] private string _labelClear        = "🗑️ Clear";
+    [ObservableProperty] private string _labelMode         = "⚙️ Mode";
+    [ObservableProperty] private string _labelQuickActions = "Quick Actions";
+    [ObservableProperty] private string _emptyHint         = "Tap a Quick Action or the mic to start";
+    [ObservableProperty] private string _footerHint        = "🎤 Tap mic to record  •  ⚙️ toggle Sim/Live  •  🔁 Hands-Free: no taps needed";
 
-    [ObservableProperty]
-    private bool _isVoiceAuthEnabled;
-
-    [ObservableProperty]
-    private string _lastTranscription = string.Empty;
-
-    [ObservableProperty]
-    private string _aiResponse = string.Empty;
-
-    [ObservableProperty]
-    private bool _isPwd;
-
-    [ObservableProperty]
-    private bool _isSimulationMode = true;
-
-    [ObservableProperty]
-    private int _guardianAlertsToday;
 
     /// <summary>
     /// When true, the mic restarts automatically after every response
@@ -90,15 +105,19 @@ public partial class MainViewModel : ObservableObject
         IUserRepository userRepository,
         IGuardianNotificationService guardianNotification,
         IAccessibilityService accessibilityService,
-        IAnalyticsService analytics)
+        IAnalyticsService analytics,
+        ILocalizationService localization,
+        GoogleTranslationService translation)
     {
-        _voiceService = voiceService;
-        _aiOrchestrator = aiOrchestrator;
-        _voiceAuthService = voiceAuthService;
-        _userRepository = userRepository;
+        _voiceService       = voiceService;
+        _aiOrchestrator     = aiOrchestrator;
+        _voiceAuthService   = voiceAuthService;
+        _userRepository     = userRepository;
         _guardianNotification = guardianNotification;
         _accessibilityService = accessibilityService;
-        _analytics = analytics;
+        _analytics          = analytics;
+        _localization       = localization;
+        _translation        = translation;
     }
 
     public async Task InitializeAsync()
@@ -126,7 +145,8 @@ public partial class MainViewModel : ObservableObject
                     PhoneNumber = "+639171234567",
                     IsVoiceAuthEnabled = false,
                     GuardianName = "Maria Santos",
-                    GuardianPhoneNumber = "+639187654321"
+                    GuardianPhoneNumber = "+639187654321",
+                    PreferredLanguage = AppLanguage.English
                 });
                 _currentUserId = user.Id;
             }
@@ -135,6 +155,10 @@ public partial class MainViewModel : ObservableObject
             IsVoiceAuthEnabled = user.IsVoiceAuthEnabled;
             IsPwd = user.UserType == UserType.PWD;
             PreferredLanguage = user.PreferredLanguage;
+            ActiveLanguage = user.PreferredLanguage;   // apply to UI labels
+            _localization.SetLanguage(user.PreferredLanguage);
+            _voiceService.SetActiveLanguage(user.PreferredLanguage == AppLanguage.Tagalog ? "fil-PH" : "en-US");
+            RefreshUiStrings();
 
             // Phase 6 — Accessibility: load and apply profile
             await _accessibilityService.LoadProfileAsync(user.Id);
@@ -155,8 +179,10 @@ public partial class MainViewModel : ObservableObject
 
             StatusMessage = $"Welcome, {CurrentUserName}! Tap to speak."; 
 
+            string welcomeMessage = "Kumusta, " + CurrentUserName + "! Ako si Boses, ang iyong voice assistant. Magtanong ka tungkol sa iyong bank account, PWD discounts, o iba pang tulong.";
             // Add welcome message
-            AddMessage("System", "Kumusta! Ako si Boses, ang iyong voice assistant. Magtanong ka tungkol sa iyong bank account, PWD discounts, o iba pang tulong.", false);
+            AddMessage("System", welcomeMessage, false);
+            await _voiceService.SpeakAsync(welcomeMessage);
         }
         catch (Exception ex)
         {
@@ -432,6 +458,85 @@ public partial class MainViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    // ── Language toggle ───────────────────────────────────────────────────────
+
+    [RelayCommand]
+    private async Task ToggleLanguageAsync()
+    {
+        var next = ActiveLanguage == AppLanguage.English
+            ? AppLanguage.Tagalog
+            : AppLanguage.English;
+
+        _localization.SetLanguage(next);
+        ActiveLanguage = next;
+        PreferredLanguage = next;
+
+        // Notify VoiceService so STT locale and demo phrase language both update
+        var ietf = next == AppLanguage.Tagalog ? "fil-PH" : "en-US";
+        _voiceService.SetActiveLanguage(ietf);
+
+        var confirmMsg = next == AppLanguage.Tagalog
+            ? "Napili ang Filipino."
+            : "English selected.";
+        StatusMessage = confirmMsg;
+        await _voiceService.SpeakAsync(confirmMsg);
+
+        await _analytics.TrackEventAsync("language_switched",
+            new Dictionary<string, string> { ["language"] = next.ToString() });
+    }
+
+    /// <summary>
+    /// Re-translates all bound UI label strings to match the active language.
+    /// Called once on init and every time the language toggles.
+    /// </summary>
+    private void RefreshUiStrings()
+    {
+        bool fil = ActiveLanguage == AppLanguage.Tagalog;
+
+        _labelBalance        = fil ? "💰 Balanse"                : "💰 Balance";
+        _labelTransactions   = fil ? "📜 Mga Transaksyon"        : "📜 Transactions";
+        _labelTransfer       = fil ? "💸 Transfer"                : "💸 Transfer";
+        _labelWithdraw       = fil ? "🏧 Mag-withdraw"            : "🏧 Withdraw";
+        _labelGCash          = fil ? "📱 GCash"                   : "📱 GCash";
+        _labelBills          = fil ? "🧾 Mga Bayarin"             : "🧾 Bills";
+        _labelLoan           = fil ? "🏦 Loan"                    : "🏦 Loan";
+        _labelPwdDiscount    = fil ? "♿ PWD Diskwento"           : "♿ PWD Discount";
+        _labelSeniorDiscount = fil ? "👴 Senior Diskwento"         : "👴 Senior Discount";
+        _labelBlockCard      = fil ? "🆘 I-block ang Card"        : "🆘 Block Card";
+        _labelHelp           = fil ? "ℹ️ Tulong"                  : "ℹ️ Help";
+        _labelRegisterVoice  = fil ? "🎤 Irehistro ang Boses"     : "🎤 Register Voice";
+        _labelScamDemo       = fil ? "🚨 Demo ng Scam Detection"  : "🚨 Scam Detection Demo";
+        _labelClear          = fil ? "🗑️ Burahin"               : "🗑️ Clear";
+        _labelMode           = fil ? "⚙️ Mode"                   : "⚙️ Mode";
+        _labelQuickActions   = fil ? "Mabilis na Aksyon"          : "Quick Actions";
+        _emptyHint           = fil ? "I-tap ang isang aksyon o ang mikropono"
+                                   : "Tap a Quick Action or the mic to start";
+        _footerHint          = fil ? "🎤 I-tap ang mic  •  ⚙️ Sim/Live  •  🔁 Hands-Free"
+                                   : "🎤 Tap mic to record  •  ⚙️ toggle Sim/Live  •  🔁 Hands-Free: no taps needed";
+
+        OnPropertyChanged(nameof(LabelBalance));
+        OnPropertyChanged(nameof(LabelTransactions));
+        OnPropertyChanged(nameof(LabelTransfer));
+        OnPropertyChanged(nameof(LabelWithdraw));
+        OnPropertyChanged(nameof(LabelGCash));
+        OnPropertyChanged(nameof(LabelBills));
+        OnPropertyChanged(nameof(LabelLoan));
+        OnPropertyChanged(nameof(LabelPwdDiscount));
+        OnPropertyChanged(nameof(LabelSeniorDiscount));
+        OnPropertyChanged(nameof(LabelBlockCard));
+        OnPropertyChanged(nameof(LabelHelp));
+        OnPropertyChanged(nameof(LabelRegisterVoice));
+        OnPropertyChanged(nameof(LabelScamDemo));
+        OnPropertyChanged(nameof(LabelClear));
+        OnPropertyChanged(nameof(LabelMode));
+        OnPropertyChanged(nameof(LabelQuickActions));
+        OnPropertyChanged(nameof(EmptyHint));
+        OnPropertyChanged(nameof(FooterHint));
+        OnPropertyChanged(nameof(LanguageButtonLabel));
+        OnPropertyChanged(nameof(IsEnglish));
+        OnPropertyChanged(nameof(IsTagalog));
     }
 
     private static AnalyticsFeature MapIntentToFeature(string action) => action switch

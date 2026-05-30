@@ -44,6 +44,14 @@
                            FontAttributes="Italic"
                            VerticalOptions="Center"/>
 
+                    <!-- Language toggle -->
+                    <Button Text="{Binding LanguageButtonLabel}"
+                            Command="{Binding ToggleLanguageCommand}"
+                            BackgroundColor="#2980B9" TextColor="White"
+                            CornerRadius="10" Padding="8,3" FontSize="11"
+                            HeightRequest="28"
+                            VerticalOptions="Center"/>
+
                     <!-- Simulation mode pill -->
                     <Border BackgroundColor="#F39C12"
                             Padding="8,3"
@@ -71,7 +79,7 @@
             <VerticalStackLayout Grid.Row="1" Spacing="8" Margin="0,4,0,8">
 
                 <!-- Label -->
-                <Label Text="Quick Actions"
+                <Label Text="{Binding LabelQuickActions}"
                        FontSize="12"
                        FontAttributes="Bold"
                        TextColor="#95A5A6"
@@ -80,43 +88,43 @@
                 <!-- Row A: Banking -->
                 <FlexLayout Wrap="Wrap" JustifyContent="Center" AlignItems="Center">
 
-                    <Button Text="💰 Balance"
+                    <Button Text="{Binding LabelBalance}"
                             Command="{Binding SimulateVoiceInputCommand}"
                             CommandParameter="Magkano ang balance ko?"
                             BackgroundColor="#3498DB" TextColor="White"
                             CornerRadius="18" Padding="14,8" Margin="4"/>
 
-                    <Button Text="📜 Transactions"
+                    <Button Text="{Binding LabelTransactions}"
                             Command="{Binding SimulateVoiceInputCommand}"
                             CommandParameter="Ano ang mga recent transactions ko?"
                             BackgroundColor="#9B59B6" TextColor="White"
                             CornerRadius="18" Padding="14,8" Margin="4"/>
 
-                    <Button Text="💸 Transfer"
+                    <Button Text="{Binding LabelTransfer}"
                             Command="{Binding SimulateVoiceInputCommand}"
                             CommandParameter="Mag-transfer ng 1000 pesos kay Maria"
                             BackgroundColor="#1ABC9C" TextColor="White"
                             CornerRadius="18" Padding="14,8" Margin="4"/>
 
-                    <Button Text="🏧 Withdraw"
+                    <Button Text="{Binding LabelWithdraw}"
                             Command="{Binding SimulateVoiceInputCommand}"
                             CommandParameter="Mag-withdraw ng 2000 pesos"
                             BackgroundColor="#16A085" TextColor="White"
                             CornerRadius="18" Padding="14,8" Margin="4"/>
 
-                    <Button Text="📱 GCash"
+                    <Button Text="{Binding LabelGCash}"
                             Command="{Binding SimulateVoiceInputCommand}"
                             CommandParameter="Mag-send ng 500 pesos sa GCash"
                             BackgroundColor="#27AE60" TextColor="White"
                             CornerRadius="18" Padding="14,8" Margin="4"/>
 
-                    <Button Text="🧾 Bills"
+                    <Button Text="{Binding LabelBills}"
                             Command="{Binding SimulateVoiceInputCommand}"
                             CommandParameter="Bayaran ang Meralco bill ng 850 pesos"
                             BackgroundColor="#2980B9" TextColor="White"
                             CornerRadius="18" Padding="14,8" Margin="4"/>
 
-                    <Button Text="🏦 Loan"
+                    <Button Text="{Binding LabelLoan}"
                             Command="{Binding SimulateVoiceInputCommand}"
                             CommandParameter="Magkano ang pwede ko pang i-loan?"
                             BackgroundColor="#8E44AD" TextColor="White"
@@ -127,26 +135,26 @@
                 <!-- Row B: Discounts + Emergency + Help -->
                 <FlexLayout Wrap="Wrap" JustifyContent="Center" AlignItems="Center">
 
-                    <Button Text="♿ PWD Discount"
+                    <Button Text="{Binding LabelPwdDiscount}"
                             Command="{Binding SimulateVoiceInputCommand}"
                             CommandParameter="PWD discount para sa 1000 pesos na gamot"
                             BackgroundColor="#E67E22" TextColor="White"
                             CornerRadius="18" Padding="14,8" Margin="4"
                             IsVisible="{Binding IsPwd}"/>
 
-                    <Button Text="👴 Senior Discount"
+                    <Button Text="{Binding LabelSeniorDiscount}"
                             Command="{Binding SimulateVoiceInputCommand}"
                             CommandParameter="Senior discount para sa 500 pesos na pagkain"
                             BackgroundColor="#D35400" TextColor="White"
                             CornerRadius="18" Padding="14,8" Margin="4"/>
 
-                    <Button Text="🆘 Block Card"
+                    <Button Text="{Binding LabelBlockCard}"
                             Command="{Binding SimulateVoiceInputCommand}"
                             CommandParameter="Nawala ang aking ATM card"
                             BackgroundColor="#C0392B" TextColor="White"
                             CornerRadius="18" Padding="14,8" Margin="4"/>
 
-                    <Button Text="ℹ️ Help"
+                    <Button Text="{Binding LabelHelp}"
                             Command="{Binding SimulateVoiceInputCommand}"
                             CommandParameter="Tulong"
                             BackgroundColor="#7F8C8D" TextColor="White"
@@ -157,13 +165,13 @@
                 <!-- Row C: Special features -->
                 <FlexLayout Wrap="Wrap" JustifyContent="Center" AlignItems="Center">
 
-                    <Button Text="🎤 Register Voice"
+                    <Button Text="{Binding LabelRegisterVoice}"
                             Command="{Binding RegisterVoiceCommand}"
                             BackgroundColor="#E74C3C" TextColor="White"
                             CornerRadius="18" Padding="14,8" Margin="4"
                             FontAttributes="Bold"/>
 
-                    <Button Text="🚨 Scam Detection Demo"
+                    <Button Text="{Binding LabelScamDemo}"
                             Command="{Binding SimulateScamDemoCommand}"
                             BackgroundColor="#922B21" TextColor="White"
                             CornerRadius="18" Padding="14,8" Margin="4"
@@ -195,7 +203,7 @@
 
                 <CollectionView ItemsSource="{Binding ConversationHistory}" Margin="12">
                     <CollectionView.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ConversationMessage">
+                    <DataTemplate x:DataType="vm:ConversationMessage">
                             <Grid Padding="0,5" ColumnDefinitions="4,*">
 
                                 <BoxView Grid.Column="0"
@@ -224,7 +232,7 @@
                                              VerticalOptions="Center"
                                              Spacing="8" Padding="20">
                             <Label Text="👋" FontSize="48" HorizontalOptions="Center"/>
-                            <Label Text="Tap a Quick Action or the mic to start"
+                            <Label Text="{Binding EmptyHint}"
                                    FontSize="15" TextColor="#95A5A6"
                                    HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
                             <Label Text="Or enable 🔁 Hands-Free for zero-tap mode"
@@ -241,7 +249,7 @@
 
                 <!-- Clear -->
                 <Button Grid.Column="0"
-                        Text="🗑️ Clear"
+                        Text="{Binding LabelClear}"
                         Command="{Binding ClearConversationCommand}"
                         BackgroundColor="#E74C3C" TextColor="White"
                         CornerRadius="22" WidthRequest="90" HeightRequest="44"
@@ -266,7 +274,7 @@
 
                 <!-- Settings / mode toggle -->
                 <Button Grid.Column="2"
-                        Text="⚙️ Mode"
+                        Text="{Binding LabelMode}"
                         Command="{Binding ToggleSimulationModeCommand}"
                         BackgroundColor="#95A5A6" TextColor="White"
                         CornerRadius="22" WidthRequest="90" HeightRequest="44"
@@ -276,7 +284,7 @@
 
             <!-- ── Listening hint ─────────────────────────────────────────── -->
             <Label Grid.Row="4"
-                   Text="🎤 Tap mic to record  •  ⚙️ toggle Sim/Live  •  🔁 Hands-Free: no taps needed"
+                   Text="{Binding FooterHint}"
                    FontSize="11" TextColor="#BDC3C7"
                    HorizontalOptions="Center" HorizontalTextAlignment="Center"
                    Margin="0,0,0,8"/>
