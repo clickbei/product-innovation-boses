@@ -1,5 +1,8 @@
+﻿using BosesApp.Core.Configuration;
 using BosesApp.Core.Interfaces;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 
 namespace BosesApp.Core.Services;
@@ -12,8 +15,10 @@ namespace BosesApp.Core.Services;
 public class AiOrchestratorService : IAiOrchestrator
 {
     private Kernel? _kernel;
+    private IChatCompletionService? _chatService;
     private readonly IUserRepository _userRepository;
     private bool _isInitialized;
+    private bool _geminiEnabled;
 
     public bool SimulationMode { get; set; } = true;
 
@@ -30,12 +35,32 @@ public class AiOrchestratorService : IAiOrchestrator
         // Initialize Semantic Kernel
         var builder = Kernel.CreateBuilder();
 
-        // TODO: In production, add Google Gemini or OpenAI connector
-        // builder.AddGoogleGeminiChatCompletion("gemini-pro", apiKey);
+        // ── Google Gemini connector ───────────────────────────────────────────
+        // Activated automatically when GEMINI_API_KEY env-var is set,
+        // or when GeminiConfig._hardcodedKey is filled in.
+        // Falls back to rule-based simulation when no key is present.
+#pragma warning disable SKEXP0070  // Gemini connector is experimental in SK 1.x
+        if (GeminiConfig.IsConfigured)
+        {
+            builder.AddGoogleAIGeminiChatCompletion(
+                modelId: GeminiConfig.ModelId,
+                apiKey:  GeminiConfig.ApiKey!);
+            _geminiEnabled = true;
+            Debug.WriteLine($"[AiOrchestrator] Google Gemini enabled — model: {GeminiConfig.ModelId}");
+        }
+        else
+        {
+            _geminiEnabled = false;
+            Debug.WriteLine("[AiOrchestrator] No Gemini API key found — using rule-based simulation.");
+        }
+#pragma warning restore SKEXP0070
 
         _kernel = builder.Build();
-        _isInitialized = true;
 
+        if (_geminiEnabled)
+            _chatService = _kernel.GetRequiredService<IChatCompletionService>();
+
+        _isInitialized = true;
         await Task.CompletedTask;
     }
 
@@ -44,17 +69,55 @@ public class AiOrchestratorService : IAiOrchestrator
         if (!_isInitialized)
             await InitializeAsync();
 
-        if (SimulationMode)
+        if (SimulationMode || !_geminiEnabled || _chatService is null)
+            return await ProcessCommandSimulatedAsync(userInput, userId);
+
+        return await ProcessCommandWithGeminiAsync(userInput, userId);
+    }
+
+    // ── Gemini NLU path ────────────────────────────────────────────────────
+
+    private async Task<string> ProcessCommandWithGeminiAsync(string userInput, int userId)
+    {
+        try
         {
+            var history = new ChatHistory();
+            history.AddSystemMessage(
+                "Ikaw si Boses, isang voice-first banking assistant para sa matatandang Pilipino at mga PWD. " +
+                "Sumagot nang maikli, malinaw, at magalang sa Filipino o English depende sa tanong. " +
+                "Huwag magsagawa ng tunay na transaksyon — simulasyon lamang ito. " +
+                "Kapag tinanong tungkol sa balanse: savings ₱15,750.50 | checking ₱8,320.00 | GCash ₱1,240.75. " +
+                "Kapag tinanong tungkol sa mga transaksyon: ibigay ang 5 pinakabagong mock transactions. " +
+                "Para sa PWD discount: 20% sa gamot, 5% sa ibang produkto. " +
+                "Para sa Senior Citizen discount: 20% sa pagkain at gamot, 5% sa iba. " +
+                "Huwag ibahagi ang buong account number sa anumang sitwasyon.");
+
+            history.AddUserMessage(userInput);
+
+#pragma warning disable SKEXP0070
+            var executionSettings = new Microsoft.SemanticKernel.Connectors.Google.GeminiPromptExecutionSettings
+            {
+                MaxTokens = 1024,
+                Temperature = 0.7,
+            };
+#pragma warning restore SKEXP0070
+
+            var result = await _chatService!.GetChatMessageContentAsync(
+                history,
+                executionSettings: executionSettings);
+            var response = result.Content ?? string.Empty;
+
+            Debug.WriteLine($"[AiOrchestrator] Gemini response ({response.Length} chars)");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AiOrchestrator] Gemini error: {ex.Message} — falling back to simulation");
             return await ProcessCommandSimulatedAsync(userInput, userId);
         }
-
-        // TODO: Use Semantic Kernel with real AI model
-        // var result = await _kernel.InvokePromptAsync(prompt);
-        // return result.ToString();
-
-        return await ProcessCommandSimulatedAsync(userInput, userId);
     }
+
+    // ── Rule-based simulation path ─────────────────────────────────────────
 
     private async Task<string> ProcessCommandSimulatedAsync(string userInput, int userId)
     {
@@ -76,16 +139,16 @@ public class AiOrchestratorService : IAiOrchestrator
             || input.Contains("ano ang kaya mo") || input.Contains("what can you do"))
         {
             return "Narito ang mga serbisyong maari kong gawin:\n" +
-                   "1. Tingnan ang balanse � 'Magkano ang balance ko?'\n" +
-                   "2. Mag-transfer ng pera � 'Mag-transfer ng 500 pesos kay Juan'\n" +
-                   "3. Mag-withdraw � 'Mag-withdraw ng 2000 pesos'\n" +
-                   "4. Tingnan ang transactions � 'Ano ang mga recent transactions ko?'\n" +
-                   "5. Bayad ng bills � 'Bayaran ang kuryente bill'\n" +
-                   "6. GCash/Maya send � 'Mag-send ng 300 pesos sa GCash'\n" +
-                   "7. PWD discount � 'Kalkulahin ang PWD discount para sa 1000 pesos'\n" +
-                   "8. Senior discount � 'Senior citizen discount para sa 500 pesos na pagkain'\n" +
-                   "9. Loan inquiry � 'Magkano ang pwede ko pang i-loan?'\n" +
-                   "10. Scam check � Pindutin ang Scam Detection Demo button";
+                   "1. Tingnan ang balanse — 'Magkano ang balance ko?'\n" +
+                   "2. Mag-transfer ng pera — 'Mag-transfer ng 500 pesos kay Juan'\n" +
+                   "3. Mag-withdraw — 'Mag-withdraw ng 2000 pesos'\n" +
+                   "4. Tingnan ang transactions — 'Ano ang mga recent transactions ko?'\n" +
+                   "5. Bayad ng bills — 'Bayaran ang kuryente bill'\n" +
+                   "6. GCash/Maya send — 'Mag-send ng 300 pesos sa GCash'\n" +
+                   "7. PWD discount — 'Kalkulahin ang PWD discount para sa 1000 pesos'\n" +
+                   "8. Senior discount — 'Senior citizen discount para sa 500 pesos na pagkain'\n" +
+                   "9. Loan inquiry — 'Magkano ang pwede ko pang i-loan?'\n" +
+                   "10. Scam check — Pindutin ang Scam Detection Demo button";
         }
 
         // ?? Balance inquiry ??????????????????????????????????????????????????
@@ -93,9 +156,9 @@ public class AiOrchestratorService : IAiOrchestrator
             || input.Contains("laman ng account") || input.Contains("how much"))
         {
             return "Ang iyong kasalukuyang balanse ay:\n" +
-                   "� Savings Account: ?15,750.50\n" +
-                   "� Checking Account: ?8,320.00\n" +
-                   "� GCash Wallet: ?1,240.75\n" +
+                   "• Savings Account: ?15,750.50\n" +
+                   "• Checking Account: ?8,320.00\n" +
+                   "• GCash Wallet: ?1,240.75\n" +
                    "Kabuuan: ?25,311.25";
         }
 
@@ -170,11 +233,11 @@ public class AiOrchestratorService : IAiOrchestrator
             || input.Contains("kasaysayan") || input.Contains("nakaraang") || input.Contains("last"))
         {
             return "Narito ang iyong 5 pinakabagong transaksyon:\n" +
-                   "1. Grocery (SM Supermarket) � -?1,250.00 kahapon\n" +
-                   "2. Sahod (Company Payroll) � +?12,000.00 Lunes\n" +
-                   "3. Meralco Bill � -?850.00 nakaraang linggo\n" +
-                   "4. GCash Send (Juan) � -?500.00 2 araw na nakalipas\n" +
-                   "5. ATM Withdrawal � -?2,000.00 3 araw na nakalipas";
+                   "1. Grocery (SM Supermarket) — -?1,250.00 kahapon\n" +
+                   "2. Sahod (Company Payroll) — +?12,000.00 Lunes\n" +
+                   "3. Meralco Bill — -?850.00 nakaraang linggo\n" +
+                   "4. GCash Send (Juan) — -?500.00 2 araw na nakalipas\n" +
+                   "5. ATM Withdrawal — -?2,000.00 3 araw na nakalipas";
         }
 
         // ?? PWD discount ??????????????????????????????????????????????????????
@@ -195,7 +258,7 @@ public class AiOrchestratorService : IAiOrchestrator
                        $"Babayaran mo: ?{amount.Value - disc:N2}";
             }
             return "Ang PWD discount ay 20% para sa mga gamot at 5% para sa pagkain at ibang produkto. " +
-                   "Sabihin ang halaga para kalkulahin � halimbawa: 'PWD discount para sa 1000 pesos na gamot'.";
+                   "Sabihin ang halaga para kalkulahin — halimbawa: 'PWD discount para sa 1000 pesos na gamot'.";
         }
 
         // ?? Senior citizen discount ???????????????????????????????????????????
@@ -217,7 +280,7 @@ public class AiOrchestratorService : IAiOrchestrator
                        "Tandaan: Ipakita ang iyong Senior Citizen ID sa kahera.";
             }
             return "Ang Senior Citizen discount ay 20% sa pagkain sa restaurant, gamot, at medikal na serbisyo. " +
-                   "Sabihin ang halaga � halimbawa: 'Senior discount para sa 500 pesos na pagkain'.";
+                   "Sabihin ang halaga — halimbawa: 'Senior discount para sa 500 pesos na pagkain'.";
         }
 
         // ?? Loan inquiry ??????????????????????????????????????????????????????
@@ -225,9 +288,9 @@ public class AiOrchestratorService : IAiOrchestrator
             || input.Contains("mag-loan") || input.Contains("borrow") || input.Contains("credit"))
         {
             return "Batay sa iyong account standing, eligible ka para sa:\n" +
-                   "� Personal Loan: hanggang ?50,000 sa 12�24 buwan\n" +
-                   "� Salary Loan: hanggang ?30,000 (kung nakakonekta ang payroll)\n" +
-                   "� Pag-IBIG Multi-Purpose Loan: hanggang ?80,000\n" +
+                   "• Personal Loan: hanggang ?50,000 sa 12–24 buwan\n" +
+                   "• Salary Loan: hanggang ?30,000 (kung nakakonekta ang payroll)\n" +
+                   "• Pag-IBIG Multi-Purpose Loan: hanggang ?80,000\n" +
                    "Pumunta sa pinakamalapit na sangay o mag-apply sa banking app. " +
                    "Kailangan ng valid ID at proof of income.";
         }
@@ -246,9 +309,9 @@ public class AiOrchestratorService : IAiOrchestrator
             || input.Contains("savings rate"))
         {
             return "Kasalukuyang interest rates:\n" +
-                   "� Regular Savings: 0.10% per annum\n" +
-                   "� Time Deposit (1 taon): 3.50% per annum\n" +
-                   "� Time Deposit (5 taon): 5.25% per annum\n" +
+                   "• Regular Savings: 0.10% per annum\n" +
+                   "• Time Deposit (1 taon): 3.50% per annum\n" +
+                   "• Time Deposit (5 taon): 5.25% per annum\n" +
                    "Para sa mas mataas na interest, alamin ang aming Time Deposit at UITF products.";
         }
 
@@ -257,19 +320,19 @@ public class AiOrchestratorService : IAiOrchestrator
             || input.Contains("nearest atm") || input.Contains("pinakamalapit"))
         {
             return "Para mahanap ang pinakamalapit na sangay o ATM:\n" +
-                   "� Gamitin ang aming banking app o website\n" +
-                   "� I-text ang 'BRANCH [LUGAR]' sa aming hotline\n" +
-                   "� Tawagan ang customer service: 1800-10-BOSES (26737)";
+                   "• Gamitin ang aming banking app o website\n" +
+                   "• I-text ang 'BRANCH [LUGAR]' sa aming hotline\n" +
+                   "• Tawagan ang customer service: 1800-10-BOSES (26737)";
         }
 
         // ?? Emergency / block card / report ??????????????????????????????????
         if (input.Contains("block") || input.Contains("emergency") || input.Contains("nawala") || input.Contains("lost")
             || input.Contains("ninakaw") || input.Contains("stolen") || input.Contains("i-report"))
         {
-            return "?? EMERGENCY � Para agad na i-block ang iyong card o account:\n" +
-                   "� Tawagan ang 24/7 hotline: 1800-10-BOSES (26737)\n" +
-                   "� I-freeze ang account sa aming app\n" +
-                   "� Pumunta sa pinakamalapit na sangay na may valid ID\n" +
+            return "?? EMERGENCY — Para agad na i-block ang iyong card o account:\n" +
+                   "• Tawagan ang 24/7 hotline: 1800-10-BOSES (26737)\n" +
+                   "• I-freeze ang account sa aming app\n" +
+                   "• Pumunta sa pinakamalapit na sangay na may valid ID\n" +
                    "Ginawa ko na ang paunang security alert sa iyong account.";
         }
 
@@ -278,17 +341,17 @@ public class AiOrchestratorService : IAiOrchestrator
             || input.Contains("customer service") || input.Contains("live support"))
         {
             return "Iko-konekta kita sa isang live agent. Pakihintay... " +
-                   "Ang average waiting time ay 3�5 minuto. " +
+                   "Ang average waiting time ay 3–5 minuto. " +
                    "Maaari ka ring tumawag sa 1800-10-BOSES (26737) para sa mas mabilis na serbisyo.";
         }
 
         // ?? Unknown / fallback ????????????????????????????????????????????????
         return "Paumanhin, hindi ko lubos na naunawaan. Subukan mo itong sabihin:\n" +
-               "� 'Balance ko' � para sa balanse\n" +
-               "� 'Mag-transfer ng pera' � para sa transfer\n" +
-               "� 'Bayad ng bills' � para sa bill payment\n" +
-               "� 'Mag-withdraw' � para sa ATM/withdrawal\n" +
-               "� 'Tulong' � para sa kumpletong listahan ng mga utos\n" +
+               "• 'Balance ko' — para sa balanse\n" +
+               "• 'Mag-transfer ng pera' — para sa transfer\n" +
+               "• 'Bayad ng bills' — para sa bill payment\n" +
+               "• 'Mag-withdraw' — para sa ATM/withdrawal\n" +
+               "• 'Tulong' — para sa kumpletong listahan ng mga utos\n" +
                "O pindutin ang isang Quick Action button sa ibaba.";
     }
 
@@ -330,7 +393,7 @@ public class AiOrchestratorService : IAiOrchestrator
         var input = command.ToLower();
         var intent = new TransactionIntent();
 
-        // Detect action � ordered most-specific first
+        // Detect action — ordered most-specific first
         if (input.Contains("gcash") || input.Contains("maya") || input.Contains("send money") || input.Contains("mag-send"))
             intent.Action = "EWALLET_SEND";
         else if (input.Contains("transfer") || input.Contains("ipadala") || input.Contains("magpadala")
@@ -510,4 +573,6 @@ public class AiOrchestratorService : IAiOrchestrator
         };
     }
 }
+
+
 

@@ -8,6 +8,8 @@ using BosesApp.Presentation.ViewModels;
 using BosesApp.Presentation.Views;
 using CommunityToolkit.Maui;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
 
 #if WINDOWS || ANDROID || IOS || MACCATALYST
@@ -50,47 +52,54 @@ public static class MauiProgram
         //   iOS/macOS → SFSpeechRecognizer
         builder.Services.AddSingleton<CommunityToolkit.Maui.Media.ISpeechToText>(CommunityToolkit.Maui.Media.SpeechToText.Default);
 
-        // ── SMS / Notification Gateway ───────────────────────────────────────────
-        // OPTION A — Simulated (default): prints to debug console, zero config.
-        builder.Services.AddSingleton<ISmsGateway, SimulatedSmsGateway>();
-        //
-        // OPTION B — Telegram Bot (RECOMMENDED FREE OPTION — unlimited, no credit card):
-        //   Setup (5 min):
-        //     1. Open Telegram → search @BotFather → send /newbot → copy TOKEN
-        //     2. Guardian opens Telegram, finds your bot, sends any message
-        //     3. Visit https://api.telegram.org/bot{TOKEN}/getUpdates
-        //        Look for "chat":{"id": 123456789} — that is the CHAT_ID
-        //     4. Replace the values below and uncomment these lines.
-        //   To enable: comment out OPTION A, uncomment the lines below.
-        // builder.Services.AddHttpClient<TelegramNotificationGateway>();
-        // builder.Services.AddSingleton<ISmsGateway>(sp =>
-        //     new TelegramNotificationGateway(
-        //         sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
-        //         botToken: "YOUR_BOT_TOKEN",   // from @BotFather
-        //         chatId:   "GUARDIAN_CHAT_ID"  // from getUpdates
-        //     ));
-        //
-        // OPTION C — TextBelt free tier (1 SMS/day to real phone, no sign-up):
-        //   Key = "textbelt" (literal). Useful if guardian has no Telegram.
-        // builder.Services.AddHttpClient<TextBeltSmsGateway>();
-        // builder.Services.AddSingleton<ISmsGateway>(sp =>
-        //     new TextBeltSmsGateway(
-        //         sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
-        //         apiKey: "textbelt"
-        //     ));
-        //
-        // OPTION D — TextBelt PAID (~$0.01/SMS, buy at https://textbelt.com):
-        // builder.Services.AddSingleton<ISmsGateway>(sp =>
-        //     new TextBeltSmsGateway(
-        //         sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
-        //         apiKey: "YOUR_PURCHASED_KEY"
-        //     ));
+            // ── SMS / Notification Gateway ───────────────────────────────────────────
+            // OPTION A — Simulated (default): prints to debug console, zero config.
+            builder.Services.AddSingleton<ISmsGateway, SimulatedSmsGateway>();
 
-        // ── Text-to-Speech (TTS) ─────────────────────────────────────────────────
-        // Google Translate TTS — free, zero setup, supports Filipino (Tagalog) and English.
-        // No API key or downloads required. Requires internet on first TTS call.
-        // Fallback: OS TTS (always available, English voice) when offline or request fails.
-        builder.Services.AddSingleton<GoogleTranslateTtsService>(_ =>
+            // Auto-configured from TelegramConfig (Core/Configuration/TelegramConfig.cs).
+            //
+            // To enable Telegram: set env vars before launching, OR paste values in TelegramConfig.cs:
+            //   $env:TELEGRAM_BOT_TOKEN = "7123456789:AAExxxxxxxx"   # from @BotFather
+            //   $env:TELEGRAM_CHAT_ID   = "123456789"                # from getUpdates URL
+            //
+            // When not configured → falls back to SimulatedSmsGateway (debug log only).
+            //
+            // OPTION B — TextBelt free tier (1 real SMS/day, no sign-up, key = "textbelt"):
+            // builder.Services.AddHttpClient<TextBeltSmsGateway>();
+            // builder.Services.AddSingleton<ISmsGateway>(sp =>
+            //     new TextBeltSmsGateway(
+            //         sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
+            //         apiKey: "textbelt"
+            //     ));
+            //
+            // OPTION C — TextBelt PAID (~$0.01/SMS, buy at https://textbelt.com):
+            // builder.Services.AddSingleton<ISmsGateway>(sp =>
+            //     new TextBeltSmsGateway(
+            //         sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
+            //         apiKey: "YOUR_PURCHASED_KEY"
+            //     ));
+            //builder.Services.AddHttpClient<TelegramNotificationGateway>();
+            //builder.Services.AddSingleton<ISmsGateway>(sp =>
+            //{
+            //    if (BosesApp.Core.Configuration.TelegramConfig.IsConfigured)
+            //    {
+            //        System.Diagnostics.Debug.WriteLine(
+            //            "[MauiProgram] Telegram guardian notifications enabled.");
+            //        return new TelegramNotificationGateway(
+            //            sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
+            //            botToken: BosesApp.Core.Configuration.TelegramConfig.BotToken!,
+            //            chatId:   BosesApp.Core.Configuration.TelegramConfig.ChatId!);
+            //    }
+            //    System.Diagnostics.Debug.WriteLine(
+            //        "[MauiProgram] No Telegram credentials found — using simulated SMS gateway.");
+            //    return new SimulatedSmsGateway();
+            //});
+
+            // ── Text-to-Speech (TTS) ─────────────────────────────────────────────────
+            // Google Translate TTS — free, zero setup, supports Filipino (Tagalog) and English.
+            // No API key or downloads required. Requires internet on first TTS call.
+            // Fallback: OS TTS (always available, English voice) when offline or request fails.
+            builder.Services.AddSingleton<GoogleTranslateTtsService>(_ =>
             new GoogleTranslateTtsService(new HttpClient()));
         builder.Services.AddSingleton<OsTtsService>();
         builder.Services.AddSingleton<ITextToSpeechService, HybridTtsService>();
