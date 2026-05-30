@@ -85,7 +85,7 @@ public class GoogleTranslationService
 
         try
         {
-            var json     = await _http.GetStringAsync(url, ct);
+            var json = await _http.GetStringAsync(url, ct);
             var detected = ParseDetectedLanguage(json);
 
             if (!string.IsNullOrWhiteSpace(detected))
