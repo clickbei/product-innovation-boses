@@ -86,6 +86,20 @@ public static class MauiProgram
         //         apiKey: "YOUR_PURCHASED_KEY"
         //     ));
 
+        // ── Text-to-Speech (TTS) ─────────────────────────────────────────────────
+        // Google Translate TTS — free, zero setup, supports Filipino (Tagalog) and English.
+        // No API key or downloads required. Requires internet on first TTS call.
+        // Fallback: OS TTS (always available, English voice) when offline or request fails.
+        builder.Services.AddSingleton<GoogleTranslateTtsService>(_ =>
+            new GoogleTranslateTtsService(new HttpClient()));
+        builder.Services.AddSingleton<OsTtsService>();
+        builder.Services.AddSingleton<ITextToSpeechService, HybridTtsService>();
+
+        // ── Translation ──────────────────────────────────────────────────────────
+        // GoogleTranslationService — free, no API key, translates UI labels and
+        // AI responses between English ↔ Filipino on demand.
+        builder.Services.AddSingleton<GoogleTranslationService>();
+
         // Register core services
         builder.Services.AddSingleton<IVoiceService, VoiceService>();
         builder.Services.AddSingleton<IAudioRecordingService, AudioRecordingService>();

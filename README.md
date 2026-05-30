@@ -153,7 +153,38 @@ BosesApp/
 
 ---
 
-### 🗣️ Filipino Language Pack (Recommended for Best Experience)
+### 🗣️ Filipino Text-to-Speech
+
+Boses uses **Google Translate TTS** for Filipino (Tagalog) voice output — completely free with **zero setup required**.
+
+| Property | Detail |
+|---|---|
+| Provider | Google Translate TTS (public endpoint) |
+| Filipino support | ✅ `tl` (Tagalog) |
+| English support | ✅ `en` |
+| Setup required | ❌ None — works out of the box |
+| API key needed | ❌ None |
+| Downloads needed | ❌ None |
+| Internet required | ✅ Yes (for TTS calls) |
+| Fallback when offline | OS built-in English voice |
+
+#### TTS Fallback Chain
+
+```
+SpeakAsync("text")
+   │
+   ├─ Internet available?
+   │    └─ Google Translate TTS ──▶ Filipino (tl) or English (en)  ✅
+   │
+   └─ Offline / request failed?
+        └─ OS TTS ──▶ Windows built-in English voice  ✅
+```
+
+No configuration needed — just run the app.
+
+---
+
+### 🗣️ Filipino Language Pack (Optional — for OS TTS fallback)
 
 Boses uses Windows Speech Recognition and Text-to-Speech. Installing the **Filipino (Pilipino)** language pack enables native Tagalog voice input and output.
 
