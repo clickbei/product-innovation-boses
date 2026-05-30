@@ -19,7 +19,7 @@ public static class GeminiConfig
     // Free tier: 15 RPM, 1 M tokens/day — sufficient for demos.
     // ────────────────────────────────────────────────────────────────────────
 
-    private const string _hardcodedKey = ""; // ← paste key here for quick demo
+    private const string _hardcodedKey = ""; // ← paste key here for quick demo (never commit)
 
     /// <summary>
     /// Returns the Gemini API key from environment variable or the hardcoded fallback.
