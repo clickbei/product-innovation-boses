@@ -18,11 +18,11 @@ public class VoiceService : IVoiceService
     private readonly ITextToSpeechService       _tts;
     private readonly GoogleTranslationService   _translation;
 
-    private bool   _isListening;
+    private bool _isListening;
     private string _simulatedInput = string.Empty;
 
     // Active language set by ToggleLanguageCommand in MainViewModel ("fil-PH" or "en-US")
-    private string _activeLanguage = "fil-PH";
+    private string _activeLanguage;
 
     private static readonly string[] _filipinoDemoResponses =
     [
@@ -115,6 +115,7 @@ public class VoiceService : IVoiceService
 
         Debug.WriteLine("[VoiceService] ?? Starting real microphone...");
         var started = await _speechRecognition.StartListeningAsync(_activeLanguage);
+
         if (started)
         {
             _isListening = true;
@@ -181,6 +182,9 @@ public class VoiceService : IVoiceService
 
         // Use Google's API to detect language; keyword heuristic is the offline fallback
         var language = await _translation.DetectLanguageAsync(text, cancellationToken);
+
+        if (language != _activeLanguage)
+          text = await _translation.TranslateToAsync(text, _activeLanguage);
 
         Debug.WriteLine($"[VoiceService] ?? TTS [{language}] via {_tts.ProviderName}: "
             + $"{text[..Math.Min(60, text.Length)]}…");
