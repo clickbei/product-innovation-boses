@@ -1,8 +1,6 @@
 # 🎤 Boses - Voice-First Accessibility Platform
 
 **Boses** is a universal voice-first accessibility platform designed for elderly Filipinos and Persons with Disabilities (PWDs). It bridges the digital divide through an ambient, conversational voice layer using Semantic Kernel, secures sensitive transactions with biometric voice authentication, and protects vulnerable users via a "Guardian" anti-scam loop.
-
-This project was built with the help of Anthropic Claude and Microsoft Copilot, whose AI assistance guided development and design
 ---
 
 ## 🎯 Product Mission
@@ -1297,5 +1295,7 @@ For questions or issues:
 3. Examine the simulation mode outputs for debugging
 
 ---
+
+This project was built with the help of Anthropic Claude and Microsoft Copilot, whose AI assistance guided development and design
 
 **Built with ❤️ for Filipino accessibility and financial inclusion**
