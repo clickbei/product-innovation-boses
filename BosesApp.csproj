@@ -47,16 +47,15 @@
     <AndroidSigningKeyPass>1234567</AndroidSigningKeyPass>
   </PropertyGroup>
 
-  
-
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-android|AnyCPU'">
     <AndroidKeyStore>True</AndroidKeyStore>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <AndroidSigningKeyAlias>boses</AndroidSigningKeyAlias>
+    <AndroidSigningKeyPass>1234567</AndroidSigningKeyPass>
+    <AndroidSigningStorePass>1234567</AndroidSigningStorePass>
   </PropertyGroup>
 
   
-
- 
   <ItemGroup>
     <!-- App Icon -->
     <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
