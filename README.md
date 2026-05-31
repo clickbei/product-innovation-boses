@@ -1161,15 +1161,7 @@ Double-click **`BosesApp.exe`** inside the copied folder.
 Produces a **single `.exe` file** — no folder needed.
 
 ```powershell
-dotnet publish BosesApp.csproj `
-  -f net9.0-windows10.0.19041.0 `
-  -c Release `
-  -r win10-x64 `
-  --self-contained true `
-  -p:WindowsPackageType=None `
-  -p:PublishSingleFile=true `
-  -p:IncludeNativeLibrariesForSelfExtract=true `
-  -o .\publish\single
+dotnet publish -f net9.0-windows10.0.19041.0 -c Release -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -p:RuntimeIdentifierOverride=win10-x64
 ```
 
 Share `publish\single\BosesApp.exe` — that one file is the entire app.
