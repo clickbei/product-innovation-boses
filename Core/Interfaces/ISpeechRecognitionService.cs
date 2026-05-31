@@ -32,7 +32,7 @@ public interface ISpeechRecognitionService
     /// Stops live speech recognition and returns recognized text
     /// </summary>
     /// <returns>Recognized text or null if recognition failed</returns>
-    Task<string?> StopListeningAsync();
+    Task<string?> StopListeningAsync(Byte[]? audioData = null);
 
     /// <summary>
     /// Converts audio data to text (fallback method)
@@ -69,4 +69,6 @@ public interface ISpeechRecognitionService
     /// Enable simulation mode — returns canned phrases instead of using the microphone.
     /// </summary>
     bool SimulationMode { get; set; }
+
+    
 }

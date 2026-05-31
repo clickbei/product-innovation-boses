@@ -109,41 +109,41 @@ public class HybridSpeechRecognitionService : ISpeechRecognitionService
         bool isFilipino = IsFilipino(language);
 
         // ?? Tier 1: native platform (English only) ?????????????????????????????
-        if (_nativeAvailable && !isFilipino)
-        {
-            try
-            {
-                var micGranted = await Permissions.RequestAsync<Permissions.Microphone>();
-                if (micGranted != PermissionStatus.Granted)
-                    throw new PermissionException("Microphone permission denied");
+        //if (_nativeAvailable && !isFilipino)
+        //{
+        //    try
+        //    {
+        //        var micGranted = await Permissions.RequestAsync<Permissions.Microphone>();
+        //        if (micGranted != PermissionStatus.Granted)
+        //            throw new PermissionException("Microphone permission denied");
 
-                await _nativeStt.RequestPermissions(CancellationToken.None);
+        //        await _nativeStt.RequestPermissions(CancellationToken.None);
 
-                var opts = new SpeechToTextOptions
-                {
-                    Culture = CultureInfo.GetCultureInfo("en-US"),
-                    ShouldReportPartialResults = true
-                };
+        //        var opts = new SpeechToTextOptions
+        //        {
+        //            Culture = CultureInfo.GetCultureInfo("en-US"),
+        //            ShouldReportPartialResults = true
+        //        };
 
-                await _nativeStt.StartListenAsync(opts, CancellationToken.None);
-                _usingNative = true;
-                Debug.WriteLine("[Hybrid] ? Tier 1 (native) started");
-                return true;
-            }
-            catch (PermissionException permEx)
-            {
-                Debug.WriteLine($"[Hybrid] ?? Tier 1 permission error: {permEx.Message}");
-                Debug.WriteLine("[Hybrid] ?? On Windows: Settings ? Privacy & Security ? Speech ? enable Online Speech Recognition");
-                _nativeAvailable = false;
-                // fall through to Tier 2
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[Hybrid] ?? Tier 1 failed: {ex.Message} — falling to Tier 2");
-                _nativeAvailable = false;
-                // fall through to Tier 2
-            }
-        }
+        //        await _nativeStt.StartListenAsync(opts, CancellationToken.None);
+        //        _usingNative = true;
+        //        Debug.WriteLine("[Hybrid] ? Tier 1 (native) started");
+        //        return true;
+        //    }
+        //    catch (PermissionException permEx)
+        //    {
+        //        Debug.WriteLine($"[Hybrid] ?? Tier 1 permission error: {permEx.Message}");
+        //        Debug.WriteLine("[Hybrid] ?? On Windows: Settings ? Privacy & Security ? Speech ? enable Online Speech Recognition");
+        //        _nativeAvailable = false;
+        //        // fall through to Tier 2
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Debug.WriteLine($"[Hybrid] ?? Tier 1 failed: {ex.Message} — falling to Tier 2");
+        //        _nativeAvailable = false;
+        //        // fall through to Tier 2
+        //    }
+        //}
 
         // ?? Tier 2: Deepgram (Tagalog + English fallback) ??????????????????????
         if (_deepgram.IsRealRecognitionAvailable)
@@ -166,7 +166,7 @@ public class HybridSpeechRecognitionService : ISpeechRecognitionService
     }
 
     // ?? Stop ???????????????????????????????????????????????????????????????????
-    public async Task<string?> StopListeningAsync()
+    public async Task<string?> StopListeningAsync(Byte[] audioData)
     {
         Debug.WriteLine($"[Hybrid] StopListeningAsync — native={_usingNative} sim={SimulationMode}");
 
@@ -211,7 +211,7 @@ public class HybridSpeechRecognitionService : ISpeechRecognitionService
         // ?? Tier 2: Deepgram ???????????????????????????????????????????????????
         if (_deepgram.IsRealRecognitionAvailable)
         {
-            return await _deepgram.StopListeningAsync();
+            return await _deepgram.StopListeningAsync(audioData);
         }
 
         return null;

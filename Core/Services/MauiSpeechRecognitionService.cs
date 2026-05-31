@@ -349,4 +349,9 @@ public class MauiSpeechRecognitionService : ISpeechRecognitionService
             return false;
         }
     }
+
+    public Task<string?> StopListeningAsync(byte[]? audioData = null)
+    {
+        throw new NotImplementedException();
+    }
 }

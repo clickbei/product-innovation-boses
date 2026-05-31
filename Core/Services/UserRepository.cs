@@ -101,9 +101,17 @@ public class UserRepository : IUserRepository
             SaveJsonCache();
             return await Task.FromResult(user);
         }
+        try
+        {
 
-        _dbContext!.UserProfiles.Add(user);
-        await _dbContext.SaveChangesAsync();
+            _dbContext!.UserProfiles.Add(user);
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+
+            throw ex;
+        }
         return user;
     }
 

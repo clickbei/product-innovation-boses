@@ -17,6 +17,7 @@ public class SpeechRecognitionService : ISpeechRecognitionService
 
     public bool IsRealRecognitionAvailable => false; // Simulation-only implementation
     public bool SimulationMode { get; set; } = true;
+    public Byte[]  AudioData { get; set; }
 
     public SpeechRecognitionService()
     {
@@ -203,5 +204,10 @@ public class SpeechRecognitionService : ISpeechRecognitionService
         }
 
         return matrix[len1, len2];
+    }
+
+    public Task<string?> StopListeningAsync(byte[]? audioData = null)
+    {
+        throw new NotImplementedException();
     }
 }
