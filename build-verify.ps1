@@ -10,8 +10,16 @@ Write-Host "Checking .NET SDK..." -ForegroundColor Yellow
 try {
     $dotnetVersion = dotnet --version
     Write-Host "✅ .NET SDK found: $dotnetVersion" -ForegroundColor Green
+
+    # Check if version is 9.0 or higher
+    $versionNumber = [version]($dotnetVersion -split '-')[0]
+    if ($versionNumber.Major -lt 9) {
+        Write-Host "⚠️  Warning: .NET 9 SDK is required. Current version: $dotnetVersion" -ForegroundColor Yellow
+        Write-Host "   Download from: https://dotnet.microsoft.com/download/dotnet/9.0" -ForegroundColor Yellow
+    }
 } catch {
-    Write-Host "❌ .NET SDK not found. Please install .NET 8 SDK." -ForegroundColor Red
+    Write-Host "❌ .NET SDK not found. Please install .NET 9 SDK." -ForegroundColor Red
+    Write-Host "   Download from: https://dotnet.microsoft.com/download/dotnet/9.0" -ForegroundColor Red
     exit 1
 }
 
@@ -97,6 +105,6 @@ Write-Host "2. Select target platform (Windows/Android/iOS)" -ForegroundColor Wh
 Write-Host "3. Press F5 to run" -ForegroundColor White
 Write-Host ""
 Write-Host "Or run from command line:" -ForegroundColor Cyan
-Write-Host "  dotnet build -t:Run -f net8.0-windows10.0.19041.0" -ForegroundColor White
+Write-Host "  dotnet build -t:Run -f net9.0-windows10.0.19041.0" -ForegroundColor White
 Write-Host ""
 Write-Host "For help, see QUICKSTART.md" -ForegroundColor Yellow

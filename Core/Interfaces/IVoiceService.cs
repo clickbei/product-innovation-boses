@@ -36,4 +36,10 @@ public interface IVoiceService
     /// Set simulated voice input for testing
     /// </summary>
     void SetSimulatedInput(string input);
+
+    /// <summary>
+    /// Notify the voice service of the currently active app language (IETF tag).
+    /// Used to select the correct STT locale and to translate demo phrases.
+    /// </summary>
+    void SetActiveLanguage(string ietfLanguage);
 }
