@@ -1,8 +1,68 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="456" height="456" viewBox="0 0 456 456" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="228" cy="180" r="60" fill="white"/>
-    <path d="M 150 250 Q 150 200 180 200 L 276 200 Q 306 200 306 250 L 306 350 Q 306 380 276 380 L 180 380 Q 150 380 150 350 Z" fill="white"/>
-    <circle cx="200" cy="280" r="15" fill="#512BD4"/>
-    <circle cx="256" cy="280" r="15" fill="#512BD4"/>
-    <path d="M 190 320 Q 228 340 266 320" stroke="#512BD4" stroke-width="8" fill="none" stroke-linecap="round"/>
+<svg width="1024" height="1024" viewBox="0 0 680 680" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <clipPath id="cc"><circle cx="340" cy="340" r="300"/></clipPath>
+  <linearGradient id="mic-g" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#FFFFFF"/>
+    <stop offset="100%" stop-color="#D8E4F0"/>
+  </linearGradient>
+  <linearGradient id="shield-g" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+    <stop offset="100%" stop-color="#E8EEF8" stop-opacity="0.9"/>
+  </linearGradient>
+</defs>
+<!-- Base circle - Philippine blue -->
+<circle cx="340" cy="340" r="300" fill="#0038A8"/>
+<!-- Red lower-right triangle -->
+<path d="M340 340 L640 640 L40 640Z" clip-path="url(#cc)" fill="#CE1126"/>
+<path d="M340 340 L640 40 L640 640Z" clip-path="url(#cc)" fill="#CE1126"/>
+<!-- White triangle left -->
+<path d="M40 340 L340 40 L340 640Z" clip-path="url(#cc)" fill="#FFFFFF" opacity="0.13"/>
+<!-- Rim -->
+<circle cx="340" cy="340" r="298" fill="none" stroke="#000000" stroke-opacity="0.18" stroke-width="4"/>
+<!-- Sun with 8 rays -->
+<g transform="translate(210,250)" opacity="0.92">
+  <line x1="0" y1="-72" x2="0" y2="-42" stroke="#FCD116" stroke-width="7" stroke-linecap="round"/>
+  <line x1="72" y1="0" x2="42" y2="0" stroke="#FCD116" stroke-width="7" stroke-linecap="round"/>
+  <line x1="0" y1="72" x2="0" y2="42" stroke="#FCD116" stroke-width="7" stroke-linecap="round"/>
+  <line x1="-72" y1="0" x2="-42" y2="0" stroke="#FCD116" stroke-width="7" stroke-linecap="round"/>
+  <line x1="51" y1="-51" x2="30" y2="-30" stroke="#FCD116" stroke-width="5" stroke-linecap="round"/>
+  <line x1="51" y1="51" x2="30" y2="30" stroke="#FCD116" stroke-width="5" stroke-linecap="round"/>
+  <line x1="-51" y1="51" x2="-30" y2="30" stroke="#FCD116" stroke-width="5" stroke-linecap="round"/>
+  <line x1="-51" y1="-51" x2="-30" y2="-30" stroke="#FCD116" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="0" cy="0" r="36" fill="#FCD116"/>
+  <circle cx="0" cy="0" r="28" fill="none" stroke="#E8A020" stroke-width="2" opacity="0.5"/>
+  <rect x="-6" y="-14" width="12" height="20" rx="6" fill="#0038A8"/>
+  <path d="M-10 8 C-10 18 10 18 10 8" fill="none" stroke="#0038A8" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="0" y1="18" x2="0" y2="24" stroke="#0038A8" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="-6" y1="24" x2="6" y2="24" stroke="#0038A8" stroke-width="2.5" stroke-linecap="round"/>
+</g>
+<!-- 3 Stars -->
+<g transform="translate(340,115)"><polygon points="0,-9 2.1,-2.9 8.6,-2.9 3.5,1.1 5.3,7.6 0,3.8 -5.3,7.6 -3.5,1.1 -8.6,-2.9 -2.1,-2.9" fill="#FCD116" opacity="0.9"/></g>
+<g transform="translate(130,530)"><polygon points="0,-9 2.1,-2.9 8.6,-2.9 3.5,1.1 5.3,7.6 0,3.8 -5.3,7.6 -3.5,1.1 -8.6,-2.9 -2.1,-2.9" fill="#FCD116" opacity="0.9"/></g>
+<g transform="translate(550,530)"><polygon points="0,-9 2.1,-2.9 8.6,-2.9 3.5,1.1 5.3,7.6 0,3.8 -5.3,7.6 -3.5,1.1 -8.6,-2.9 -2.1,-2.9" fill="#FCD116" opacity="0.9"/></g>
+<!-- Guardian shield -->
+<path d="M340 480 C293 458 264 422 264 386 L264 350 L340 330 L416 350 L416 386 C416 422 387 458 340 480Z" fill="url(#shield-g)"/>
+<!-- Microphone body -->
+<rect x="314" y="198" width="52" height="96" rx="26" fill="url(#mic-g)"/>
+<line x1="322" y1="225" x2="358" y2="225" stroke="#0038A8" stroke-width="1.5" stroke-opacity="0.15"/>
+<line x1="322" y1="237" x2="358" y2="237" stroke="#0038A8" stroke-width="1.5" stroke-opacity="0.15"/>
+<line x1="322" y1="249" x2="358" y2="249" stroke="#0038A8" stroke-width="1.5" stroke-opacity="0.15"/>
+<line x1="322" y1="261" x2="358" y2="261" stroke="#0038A8" stroke-width="1.5" stroke-opacity="0.15"/>
+<!-- Mic stand -->
+<path d="M284 286 C284 358 396 358 396 286" fill="none" stroke="url(#mic-g)" stroke-width="9" stroke-linecap="round"/>
+<line x1="340" y1="358" x2="340" y2="392" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" opacity="0.9"/>
+<rect x="302" y="390" width="76" height="9" rx="4.5" fill="#FFFFFF" opacity="0.9"/>
+<!-- Sound waves left -->
+<path d="M252 244 C230 267 216 301 216 338 C216 375 230 409 252 432" fill="none" stroke="#FCD116" stroke-width="9" stroke-linecap="round" opacity="0.95"/>
+<path d="M218 214 C186 244 166 290 166 338 C166 386 186 432 218 462" fill="none" stroke="#FCD116" stroke-width="7" stroke-linecap="round" opacity="0.55"/>
+<path d="M186 186 C144 222 118 278 118 338 C118 398 144 454 186 490" fill="none" stroke="#FCD116" stroke-width="5" stroke-linecap="round" opacity="0.25"/>
+<!-- Sound waves right -->
+<path d="M428 244 C450 267 464 301 464 338 C464 375 450 409 428 432" fill="none" stroke="#FCD116" stroke-width="9" stroke-linecap="round" opacity="0.95"/>
+<path d="M462 214 C494 244 514 290 514 338 C514 386 494 432 462 462" fill="none" stroke="#FCD116" stroke-width="7" stroke-linecap="round" opacity="0.55"/>
+<path d="M494 186 C536 222 562 278 562 338 C562 398 536 454 494 490" fill="none" stroke="#FCD116" stroke-width="5" stroke-linecap="round" opacity="0.25"/>
+<!-- Shield checkmark -->
+<path d="M316 390 L333 408 L366 372" fill="none" stroke="#0038A8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+<!-- Wordmark -->
+<text x="340" y="538" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="54" font-weight="700" letter-spacing="5" fill="#FFFFFF" opacity="0.97">BOSES</text>
+<text x="340" y="570" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="17" font-weight="400" letter-spacing="3" fill="#FCD116" opacity="0.88">VOICE FOR ALL</text>
 </svg>

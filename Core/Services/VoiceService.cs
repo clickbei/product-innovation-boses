@@ -169,7 +169,7 @@ public class VoiceService : IVoiceService
         return string.Empty;
     }
 
-    // ?? Speak ??????????????????????????????????????????????????????????????????
+    // ?? Speak 
 
     /// <summary>
     /// Speaks <paramref name="text"/> through the hybrid TTS chain.
@@ -183,8 +183,10 @@ public class VoiceService : IVoiceService
         // Use Google's API to detect language; keyword heuristic is the offline fallback
         var language = await _translation.DetectLanguageAsync(text, cancellationToken);
 
-        if (language != _activeLanguage)
+        if (!string.IsNullOrWhiteSpace(_activeLanguage) && language != _activeLanguage)
           text = await _translation.TranslateToAsync(text, _activeLanguage);
+       
+       
 
         Debug.WriteLine($"[VoiceService] ?? TTS [{language}] via {_tts.ProviderName}: "
             + $"{text[..Math.Min(60, text.Length)]}…");

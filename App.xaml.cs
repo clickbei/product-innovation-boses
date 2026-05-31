@@ -21,9 +21,10 @@ namespace BosesApp
             // Check if user has completed onboarding
             var userRepository = services.GetService<IUserRepository>();
             var hasCompletedOnboarding = CheckOnboardingStatus(userRepository);
+            var hasExistingUser = userRepository != null && userRepository.GetAllUsersAsync().GetAwaiter().GetResult().Any();
 
             ContentPage startPage;
-            if (hasCompletedOnboarding)
+            if (!hasExistingUser && hasCompletedOnboarding)
             {
                 // User has completed onboarding - go to main page
                 var mainPage = services.GetService<MainPage>();
@@ -32,6 +33,12 @@ namespace BosesApp
                     throw new InvalidOperationException("MainPage service not found");
                 }
                 startPage = mainPage;
+            }
+            else if (hasExistingUser && !hasCompletedOnboarding)
+            {
+                var voiceRegistrationPage = services.GetService<VoiceRegistrationPage>();
+
+                startPage = voiceRegistrationPage;
             }
             else
             {

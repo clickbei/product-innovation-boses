@@ -264,7 +264,36 @@ public class AiOrchestratorService : IAiOrchestrator
         // ?? Senior citizen discount ???????????????????????????????????????????
         if (input.Contains("senior") || input.Contains("matanda") || input.Contains("lolo") || input.Contains("lola"))
         {
+            return "Narito ang mga serbisyong maari kong gawin:\n" +
+                   "1. Tingnan ang balanse — 'Magkano ang balance ko?'\n" +
+                   "2. Mag-transfer ng pera — 'Mag-transfer ng 500 pesos kay Juan'\n" +
+                   "3. Mag-withdraw — 'Mag-withdraw ng 2000 pesos'\n" +
+                   "4. Tingnan ang transactions — 'Ano ang mga recent transactions ko?'\n" +
+                   "5. Bayad ng bills — 'Bayaran ang kuryente bill'\n" +
+                   "6. GCash/Maya send — 'Mag-send ng 300 pesos sa GCash'\n" +
+                   "7. PWD discount — 'Kalkulahin ang PWD discount para sa 1000 pesos'\n" +
+                   "8. Senior discount — 'Senior citizen discount para sa 500 pesos na pagkain'\n" +
+                   "9. Loan inquiry — 'Magkano ang pwede ko pang i-loan?'\n" +
+                   "10. Scam check — Pindutin ang Scam Detection Demo button";
+        }
+
+        // ?? Balance inquiry ??????????????????????????????????????????????????
+        if (input.Contains("balance") || input.Contains("balanse") || input.Contains("magkano")
+            || input.Contains("laman ng account") || input.Contains("how much"))
+        {
+            return "Ang iyong kasalukuyang balanse ay:\n" +
+                   "• Savings Account: ?15,750.50\n" +
+                   "• Checking Account: ?8,320.00\n" +
+                   "• GCash Wallet: ?1,240.75\n" +
+                   "Kabuuan: ?25,311.25";
+        }
+
+        // ?? Send to GCash / Maya / e-wallet ??????????????????????????????????
+        if (input.Contains("gcash") || input.Contains("maya") || input.Contains("e-wallet")
+            || input.Contains("ewallet") || input.Contains("send money") || input.Contains("mag-send"))
+        {
             var amount = ExtractAmount(input);
+            var wallet = input.Contains("gcash") ? "GCash" : input.Contains("maya") ? "Maya" : "e-wallet";
             if (amount.HasValue)
             {
                 var isMed  = input.Contains("gamot") || input.Contains("medicine") || input.Contains("botika");

@@ -1,7 +1,6 @@
 # 🎤 Boses - Voice-First Accessibility Platform
 
 **Boses** is a universal voice-first accessibility platform designed for elderly Filipinos and Persons with Disabilities (PWDs). It bridges the digital divide through an ambient, conversational voice layer using Semantic Kernel, secures sensitive transactions with biometric voice authentication, and protects vulnerable users via a "Guardian" anti-scam loop.
-
 ---
 
 ## 🎯 Product Mission
@@ -1153,15 +1152,7 @@ Double-click **`BosesApp.exe`** inside the copied folder.
 Produces a **single `.exe` file** — no folder needed.
 
 ```powershell
-dotnet publish BosesApp.csproj `
-  -f net9.0-windows10.0.19041.0 `
-  -c Release `
-  -r win10-x64 `
-  --self-contained true `
-  -p:WindowsPackageType=None `
-  -p:PublishSingleFile=true `
-  -p:IncludeNativeLibrariesForSelfExtract=true `
-  -o .\publish\single
+dotnet publish -f net9.0-windows10.0.19041.0 -c Release -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -p:RuntimeIdentifierOverride=win10-x64
 ```
 
 Share `publish\single\BosesApp.exe` — that one file is the entire app.
@@ -1296,5 +1287,7 @@ For questions or issues:
 3. Examine the simulation mode outputs for debugging
 
 ---
+
+This project was built with the help of Anthropic Claude and Microsoft Copilot, whose AI assistance guided development and design
 
 **Built with ❤️ for Filipino accessibility and financial inclusion**

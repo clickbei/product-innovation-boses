@@ -146,6 +146,18 @@ public partial class VoiceRegistrationViewModel : ObservableObject
         {
             IsBusy = true;
             StatusMessage = "Starting recording...";
+            await _voiceService.SpeakAsync(StatusMessage);
+
+            StatusMessage = $"🎤 Recording sample {CurrentSample + 1} of {TotalSamples}...";
+            InstructionText = _localizationService.GetString("voice_validation_instruction", ExpectedPhrase);
+            AudioFeedback = $"🔴 Recording in progress...\n\n📝 Say: \"{ExpectedPhrase}\"";
+            ShowValidationFeedback = false;
+
+            // Start duration timer
+            StartDurationTimer();
+
+            // Speak instruction
+            await _voiceService.SpeakAsync($"Recording sample {CurrentSample + 1}. Please say: {ExpectedPhrase}");
 
             // Start audio recording
             var started = await _audioRecordingService.StartRecordingAsync();
@@ -170,16 +182,7 @@ public partial class VoiceRegistrationViewModel : ObservableObject
             }
 
             IsRecording = true;
-            StatusMessage = $"🎤 Recording sample {CurrentSample + 1} of {TotalSamples}...";
-            InstructionText = _localizationService.GetString("voice_validation_instruction", ExpectedPhrase);
-            AudioFeedback = $"🔴 Recording in progress...\n\n📝 Say: \"{ExpectedPhrase}\"";
-            ShowValidationFeedback = false;
-
-            // Start duration timer
-            StartDurationTimer();
-
-            // Speak instruction
-            await _voiceService.SpeakAsync($"Recording sample {CurrentSample + 1}. Please say: {ExpectedPhrase}");
+          
 
             // Auto-stop after 5 seconds
             _ = Task.Run(async () =>
@@ -210,8 +213,9 @@ public partial class VoiceRegistrationViewModel : ObservableObject
             StatusMessage = "Processing audio...";
 
             var audioData = await _audioRecordingService.StopRecordingAsync();
+
             IsRecording = false;
-            var recognizedText = await _speechRecognitionService.StopListeningAsync();
+            var recognizedText = await _speechRecognitionService.StopListeningAsync(audioData);
             if (audioData == null || audioData.Length == 0)
             {
                 StatusMessage = "❌ No audio captured. Please try again.";

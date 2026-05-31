@@ -94,7 +94,7 @@ public class DeepgramSpeechRecognitionService : ISpeechRecognitionService
     }
 
     // ?? Stop: send audio to Deepgram, fire result event ???????????????????????
-    public async Task<string?> StopListeningAsync()
+    public async Task<string?> StopListeningAsync(byte[]? audioData = null)
     {
         Debug.WriteLine($"[Deepgram] StopListeningAsync — sim={SimulationMode}");
 
@@ -106,7 +106,8 @@ public class DeepgramSpeechRecognitionService : ISpeechRecognitionService
             return sim;
         }
 
-        var audioData = await _audioRecorder.StopRecordingAsync();
+        if (audioData == null)
+            audioData = await _audioRecorder.StopRecordingAsync();
 
         if (audioData.Length == 0)
         {
@@ -242,4 +243,6 @@ public class DeepgramSpeechRecognitionService : ISpeechRecognitionService
                     m[i - 1, j - 1] + (s1[i - 1] == s2[j - 1] ? 0 : 1));
         return m[s1.Length, s2.Length];
     }
+
+   
 }
