@@ -8,7 +8,8 @@
 
 Boses empowers elderly Filipinos and PWDs to access digital banking and services through natural voice commands in Tagalog and English. The platform features:
 
-- **🗣️ Voice-First Interface**: Natural language processing with Semantic Kernel
+- **🗣️ Voice-First Interface**: Natural language processing powered by **Google Gemini** via Semantic Kernel
+- **🤖 Google Gemini AI**: Live NLU with `gemini-1.5-flash` — context-aware, bilingual responses (Tagalog/English)
 - **🔐 Voice Biometric Authentication**: Secure transactions with voice fingerprinting
 - **🛡️ Guardian Anti-Scam Protection**: Verification loop for high-risk transactions
 - **🏦 Open Banking Integration**: Simulated integration with Brankas/UnionBank APIs
@@ -184,37 +185,6 @@ No configuration needed — just run the app.
 
 ---
 
-### 🗣️ Filipino Language Pack (Optional — for OS TTS fallback)
-
-Boses uses Windows Speech Recognition and Text-to-Speech. Installing the **Filipino (Pilipino)** language pack enables native Tagalog voice input and output.
-
-#### Step 1 — Add Filipino display language
-
-1. Open **Settings** → **Time & Language** → **Language & Region**
-2. Click **Add a language**
-3. Search for **Filipino** and click **Next** → **Install**
-4. Wait for the download to complete (≈ 50–150 MB)
-
-#### Step 2 — Install speech features for Filipino
-
-1. In **Language & Region**, click the **⋯** menu next to **Filipino**
-2. Select **Language options**
-3. Under **Speech**, click **Download** — installs the Filipino TTS voice and speech recogniser
-4. Under **Handwriting** (optional), click **Download**
-
-#### Step 3 — Verify the Filipino voice is available
-
-```powershell
-# Run in PowerShell to list installed TTS voices
-Add-Type -AssemblyName System.Speech
-$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
-$synth.GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }
-# You should see: Microsoft Blessica (or similar Filipino voice)
-```
-
-> **Without the Filipino language pack**, Boses will automatically fall back to an English voice. The app still works fully — speech just won't be in Tagalog.
-
-> **Tip**: After installing, sign out and back in to Windows for the new voice to become available in all apps.
 
 ### Installation
 
@@ -399,6 +369,38 @@ Edit `MockBankingApiClient.cs` to customize:
 
 ---
 
+### 🤖 Google Gemini AI Configuration
+
+Boses uses **Google Gemini** (`gemini-1.5-flash`) for live NLU when an API key is present. Without a key it falls back to rule-based simulation automatically.
+
+**File**: `Core/Configuration/GeminiConfig.cs`
+
+#### Option 1 — Environment variable (recommended)
+```powershell
+# Windows PowerShell — set before launching the app
+$env:GEMINI_API_KEY = "AIza..."
+```
+
+#### Option 2 — Hardcoded key (quick demo only, never commit)
+```csharp
+// In GeminiConfig.cs
+private const string _hardcodedKey = "AIza..."; // ← paste key here
+```
+
+Get a free key at [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) — free tier is **15 RPM / 1 M tokens per day**, sufficient for demos.
+
+#### Gemini settings
+
+| Setting | Value | Notes |
+|---|---|---|
+| Model | `gemini-1.5-flash` | Fast, free-tier friendly |
+| MaxTokens | `1024` | Prevents truncated responses |
+| Temperature | `0.7` | Natural, varied replies |
+
+When `SimulationMode = true` (default), Gemini is bypassed even if a key is configured — ideal for offline demos.
+
+---
+
 ### 📬 Telegram Guardian Notifications (Free, Unlimited)
 
 Telegram is the recommended notification provider for demos — completely free with no daily limits.
@@ -509,8 +511,11 @@ builder.Services.AddSingleton<ISmsGateway>(sp =>
 - **CommunityToolkit.Maui.Media.SpeechToText** - MAUI speech recognition (Android 33+)
 - **Vosk (Optional)** - Offline speech recognition with bundled models
 
+### AI / NLU Packages
+- **Microsoft.SemanticKernel** - AI orchestration framework
+- **Microsoft.SemanticKernel.Connectors.Google** - Google Gemini connector (experimental `SKEXP0070`)
+
 ### Optional Integrations (for future)
-- **Microsoft.SemanticKernel** - AI orchestration (commented out, ready for integration)
 - **Microsoft.CognitiveServices.Speech** - Azure Speech Services (available)
 
 ---
@@ -694,20 +699,21 @@ The following production features are designed into the architecture but require
   - Recommended: Silero VAD or WebRTC VAD
   - File: `Core/Services/VoiceActivityDetectionService.cs`
 
-#### Phase 2: AI & NLU (Natural Language Understanding) ⏳
-- [ ] **Google Gemini API**
-  - Currently: Rule-based command matching
-  - Setup: Add `GOOGLE_AI_API_KEY` to configuration
-  - File: `Core/Services/GeminiAiOrchestrator.cs` (to be created)
-  - Benefit: Context-aware conversation
+#### Phase 2: AI & NLU (Natural Language Understanding) ✅
+- [x] **Google Gemini API**
+  - Status: **Implemented** — `Core/Services/AiOrchestratorService.cs` + `Core/Configuration/GeminiConfig.cs`
+  - Model: `gemini-1.5-flash` via `Microsoft.SemanticKernel.Connectors.Google`
+  - Setup: Set `GEMINI_API_KEY` env var or fill `_hardcodedKey` in `GeminiConfig.cs`
+  - Settings: `MaxTokens = 1024`, `Temperature = 0.7` via `GeminiPromptExecutionSettings`
+  - Fallback: Rule-based simulation when no key is set or `SimulationMode = true`
 
 - [ ] **Custom Intent Classification**
   - Recommended: Rasa NLU or Hugging Face
   - Improve: Tagalog + English support
 
 - [ ] **Conversation Memory**
-  - Currently: Stateless command processing
-  - Improvement: Track conversation context
+  - Currently: Stateless per-request `ChatHistory`
+  - Improvement: Persist history across turns for multi-turn dialogue
 
 #### Phase 3: Banking Integration ⏳
 - [ ] **Brankas Open Banking API**
@@ -853,7 +859,7 @@ IVoiceService                 → VoiceService (TTS + mic orchestration)
 IVoiceAuthService             → RealVoiceAuthService
 IUserRepository               → UserRepository
 ILocalizationService          → LocalizationService
-IAiOrchestrator               → AiOrchestratorService
+IAiOrchestrator               → AiOrchestratorService (Gemini live | rule-based fallback)
 IGuardianNotificationService  → GuardianNotificationService
 IAccessibilityService         → AccessibilityService
 IAnalyticsService             → AnalyticsService
@@ -892,9 +898,12 @@ IBankApiClient                → MockBankingApiClient
 - [ ] Add noise cancellation and voice activity detection
 
 ### Phase 2: AI & NLU
-- [ ] Connect Google Gemini API for production NLU
+- [x] Google Gemini API integrated (`gemini-1.5-flash`, Semantic Kernel connector)
+- [x] Bilingual system prompt (Tagalog/English banking context)
+- [x] `GeminiPromptExecutionSettings` — `MaxTokens = 1024`, `Temperature = 0.7`
+- [x] Automatic fallback to rule-based simulation when offline or `SimulationMode = true`
 - [ ] Train custom intent classification models
-- [ ] Implement context-aware conversation memory
+- [ ] Persistent multi-turn conversation memory
 
 ### Phase 3: Banking Integration
 - [ ] Integrate Brankas Open Banking API
@@ -1261,7 +1270,7 @@ Then launch **Boses** from the Start menu like any installed app.
 
 ## 📄 License
 
-This project is developed for passtion/educational purposes. For production use, ensure compliance with:
+This project is developed for passion/educational purposes. For production use, ensure compliance with:
 - Banking regulations (BSP, PCI-DSS)
 - Data privacy laws (Data Privacy Act of 2012)
 - Accessibility standards (WCAG 2.1)
