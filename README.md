@@ -207,9 +207,6 @@ No configuration needed — just run the app.
 
 ```bash
 dotnet build -t:Run -f net9.0-windows10.0.19041.0
-```
-
-Or press **F5** in Visual Studio with the **Windows Machine** target selected.
 
 <details>
 <summary>Other platforms (click to expand)</summary>
@@ -1066,16 +1063,11 @@ Adjust these values based on your accuracy requirements.
 Additional detailed guides are available:
 
 | Document | Purpose |
-|----------|---------|
-| **`FEATURE_IMPLEMENTATION_STATUS.md`** | ⭐ **START HERE** - Complete feature checklist (implemented vs. roadmap) |
-| **`README_ALIGNMENT_REPORT.md`** | 📋 Verification that README matches codebase implementation |
-| `SPEECH_RECOGNITION_DIAGNOSTICS.md` | Speech recognition troubleshooting and debugging |
-| `SPEECH_RECOGNITION_FIX_SUMMARY.md` | Details on OnRecognitionResultUpdated event implementation |
-| `ARCHITECTURE.md` | Detailed architecture documentation |
-| `FEATURES.md` | Complete feature list |
-| `ONBOARDING_GUIDE.md` | User onboarding flow documentation |
-| `LOCALIZATION_IMPLEMENTATION_SUMMARY.md` | Language support details |
+|----------|--------|
 | `QUICKSTART.md` | Quick start guide for developers |
+| `ARCHITECTURE.md` | Detailed architecture documentation |
+| `FEATURES.md` | Complete feature showcase |
+| `project-report.md` | AI-generated project report |
 
 ---
 

@@ -715,12 +715,12 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            // Navigate to voice registration page
             var registrationPage = Application.Current?.Handler?.MauiContext?.Services
                 .GetService<Presentation.Views.VoiceRegistrationPage>();
 
             if (registrationPage != null && Application.Current?.Windows.FirstOrDefault()?.Page is NavigationPage navPage)
             {
+                registrationPage.SetUserId(_currentUserId);
                 await navPage.PushAsync(registrationPage);
             }
         }

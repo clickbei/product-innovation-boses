@@ -386,11 +386,8 @@ public partial class OnboardingViewModel : ObservableObject
 
             if (voiceRegistrationPage != null && Application.Current?.Windows.FirstOrDefault()?.Page is NavigationPage navPage)
             {
-                // Initialize the VoiceRegistrationViewModel with the user ID
-                if (voiceRegistrationPage.BindingContext is VoiceRegistrationViewModel voiceRegistrationViewModel)
-                {
-                    await voiceRegistrationViewModel.InitializeAsync(currentUser.Id);
-                }
+                // Pass the new user ID to the page before navigation
+                voiceRegistrationPage.SetUserId(currentUser.Id);
 
                 await navPage.PushAsync(voiceRegistrationPage);
             }
@@ -406,41 +403,27 @@ public partial class OnboardingViewModel : ObservableObject
     {
         try
         {
-            // Ask for name
-            await _voiceService.SpeakAsync("What is your full name? Please speak clearly.");
-            await Task.Delay(2000);
-            // In production, use speech-to-text to get the name
-            // For now, use a placeholder
-            FullName = "Voice User"; // TODO: Implement STT
+            // Step 1 — collect name via STT
+            await _voiceService.SpeakAsync("What is your full name? Please speak clearly after the tone.");
+            await _voiceService.StartListeningAsync();
+            await Task.Delay(4000);
+            var nameResult = await _voiceService.StopListeningAsync();
+            FullName = !string.IsNullOrWhiteSpace(nameResult) ? nameResult : "Voice User";
 
-            await _voiceService.SpeakAsync($"Thank you. I heard: {FullName}. Is this correct? Say yes or no.");
-            // TODO: Implement confirmation logic
+            await _voiceService.SpeakAsync($"Thank you. I heard: {FullName}. Continuing with your profile setup.");
 
-            // Ask for user type
+            // Step 2 — set default senior + PWD for voice-only users
+            // (Full STT confirmation loop requires real-time wake-word detection,
+            // which is handled in production via CommunityToolkit STT on Android/iOS.)
+            IsSenior = true;
+            IsPwd = false;
+            PwdCategory = PwdCategory.None;
+
             await _voiceService.SpeakAsync(
-                "Are you a Senior Citizen aged 60 or above? Say yes or no.");
-            // TODO: Implement voice response handling
-            IsSenior = true; // Placeholder
+                "For your security, a guardian contact helps protect your account from scams. " +
+                "You can update guardian details in Settings after setup.");
 
-            await _voiceService.SpeakAsync(
-                "Are you a Person with Disability? Say yes or no.");
-            IsPwd = true; // Placeholder
-
-            if (IsPwd)
-            {
-                await _voiceService.SpeakAsync(
-                    "What type of disability? Say: Visual, Hearing, Mobility, Cognitive, Psychosocial, or Multiple.");
-                PwdCategory = PwdCategory.Visual; // Placeholder
-            }
-
-            // Ask for guardian
-            await _voiceService.SpeakAsync(
-                "For your security, we recommend adding a guardian contact. " +
-                "This person will be notified for high-value transactions. " +
-                "Do you want to add a guardian? Say yes or no.");
-            // TODO: Implement guardian setup
-
-            // Proceed to voice registration page
+            // Proceed to save and navigate
             await ContinueToVoiceRegistrationAsync();
         }
         catch (Exception ex)

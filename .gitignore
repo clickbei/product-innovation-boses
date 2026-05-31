@@ -87,3 +87,12 @@ users.json
 # Backup files
 *.bak
 *~
+
+# Local secrets — never commit these files
+*Secrets.cs
+
+# Helper scripts that may contain sensitive info
+fix-secret.ps1
+
+
+

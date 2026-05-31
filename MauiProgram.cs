@@ -9,7 +9,6 @@ using BosesApp.Presentation.Views;
 using CommunityToolkit.Maui;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
 
 #if WINDOWS || ANDROID || IOS || MACCATALYST
@@ -186,7 +185,9 @@ public static class MauiProgram
             services.AddDbContext<BosesDbContext>(options =>
             {
                 options.UseSqlite($"Data Source={dbPath}");
+#if DEBUG
                 options.EnableSensitiveDataLogging();
+#endif
             });
 
             services.AddSingleton<IUserRepository>(sp =>

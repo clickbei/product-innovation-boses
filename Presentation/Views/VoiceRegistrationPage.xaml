@@ -2,10 +2,16 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BosesApp.Presentation.ViewModels"
+             xmlns:converters="clr-namespace:BosesApp.Presentation.Converters"
              x:Class="BosesApp.Presentation.Views.VoiceRegistrationPage"
              x:DataType="vm:VoiceRegistrationViewModel"
              Title="Voice Registration"
              BackgroundColor="#F5F5F5">
+
+    <ContentPage.Resources>
+        <converters:InvertedBoolConverter x:Key="InvertedBoolConverter"/>
+        <converters:StringToBoolConverter x:Key="StringToBoolConverter"/>
+    </ContentPage.Resources>
 
     <Grid RowDefinitions="Auto,*,Auto" Padding="20">
 
@@ -100,14 +106,14 @@
                     <Border.BackgroundColor>
                         <Binding Path="IsValidationSuccess">
                             <Binding.Converter>
-                                <vm:BoolToColorConverter TrueColor="#D5F4E6" FalseColor="#FADBD8"/>
+                                <converters:BoolToColorConverter TrueColor="#D5F4E6" FalseColor="#FADBD8"/>
                             </Binding.Converter>
                         </Binding>
                     </Border.BackgroundColor>
                     <Border.Stroke>
                         <Binding Path="IsValidationSuccess">
                             <Binding.Converter>
-                                <vm:BoolToColorConverter TrueColor="#2ECC71" FalseColor="#E74C3C"/>
+                                <converters:BoolToColorConverter TrueColor="#2ECC71" FalseColor="#E74C3C"/>
                             </Binding.Converter>
                         </Binding>
                     </Border.Stroke>
@@ -123,14 +129,14 @@
                             <Label.Text>
                                 <Binding Path="IsValidationSuccess">
                                     <Binding.Converter>
-                                        <vm:BoolToTextConverter TrueText="✅ Validation Success!" FalseText="❌ Validation Failed"/>
+                                        <converters:BoolToTextConverter TrueText="✅ Validation Success!" FalseText="❌ Validation Failed"/>
                                     </Binding.Converter>
                                 </Binding>
                             </Label.Text>
                             <Label.TextColor>
                                 <Binding Path="IsValidationSuccess">
                                     <Binding.Converter>
-                                        <vm:BoolToColorConverter TrueColor="#27AE60" FalseColor="#C0392B"/>
+                                        <converters:BoolToColorConverter TrueColor="#27AE60" FalseColor="#C0392B"/>
                                     </Binding.Converter>
                                 </Binding>
                             </Label.TextColor>
@@ -144,7 +150,7 @@
                             <Label.TextColor>
                                 <Binding Path="IsValidationSuccess">
                                     <Binding.Converter>
-                                        <vm:BoolToColorConverter TrueColor="#27AE60" FalseColor="#C0392B"/>
+                                        <converters:BoolToColorConverter TrueColor="#27AE60" FalseColor="#C0392B"/>
                                     </Binding.Converter>
                                 </Binding>
                             </Label.TextColor>
@@ -260,7 +266,7 @@
                 <Border.BackgroundColor>
                     <Binding Path="IsRecording">
                         <Binding.Converter>
-                            <vm:BoolToColorConverter TrueColor="#E74C3C" FalseColor="#2ECC71"/>
+                            <converters:BoolToColorConverter TrueColor="#E74C3C" FalseColor="#2ECC71"/>
                         </Binding.Converter>
                     </Binding>
                 </Border.BackgroundColor>
@@ -278,7 +284,7 @@
                     <Label.Text>
                         <Binding Path="IsRecording">
                             <Binding.Converter>
-                                <vm:BoolToTextConverter TrueText="⏹️" FalseText="🎤"/>
+                                <converters:BoolToTextConverter TrueText="⏹️" FalseText="🎤"/>
                             </Binding.Converter>
                         </Binding>
                     </Label.Text>

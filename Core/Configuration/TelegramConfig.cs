@@ -27,7 +27,7 @@ public static class TelegramConfig
     // ── Option 2: paste hardcoded values here for a quick demo ──────────────
     // IMPORTANT: remove these before committing to source control.
     private const string _hardcodedBotToken = ""; // e.g. "7123456789:AAExxxxxxxx" — never commit
-    private const string _hardcodedChatId   = "8771257662"; // e.g. "123456789"
+    private const string _hardcodedChatId   = ""; // e.g. "123456789"               — never commit
     // ────────────────────────────────────────────────────────────────────────
 
     /// <summary>

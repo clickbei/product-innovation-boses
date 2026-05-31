@@ -429,21 +429,12 @@ public partial class VoiceRegistrationViewModel : ObservableObject
     [RelayCommand]
     private async Task CloseAsync()
     {
-        var mainPage = Application.Current?.Handler?.MauiContext?.Services
-                        .GetService<Presentation.Views.MainPage>();
+        // Clean up resources before leaving
+        Cleanup();
 
-
-
-
-        if (mainPage != null && Application.Current?.Windows.FirstOrDefault()?.Page is NavigationPage navPage)
+        if (Application.Current?.Windows.FirstOrDefault()?.Page is NavigationPage navPage)
         {
-            // Initialize the VoiceRegistrationViewModel with the user ID
-            if (mainPage.BindingContext is MainViewModel mainViewModel)
-            {
-                await mainViewModel.InitializeAsync();
-            }
-
-            await navPage.PushAsync(mainPage);
+            await navPage.PopAsync();
         }
     }
 

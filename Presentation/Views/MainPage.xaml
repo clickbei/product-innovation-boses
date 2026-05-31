@@ -9,8 +9,8 @@
              BackgroundColor="#F0F4F8">
 
     <ContentPage.Resources>
-        <vm:BoolToColorConverter x:Key="BoolToColorConv" TrueColor="#E74C3C" FalseColor="#2ECC71"/>
-        <vm:BoolToTextConverter  x:Key="BoolToTextConv"  TrueText="⏹️"      FalseText="🎤"/>
+        <converters:BoolToColorConverter x:Key="BoolToColorConv" TrueColor="#E74C3C" FalseColor="#2ECC71"/>
+        <converters:BoolToTextConverter  x:Key="BoolToTextConv"  TrueText="⏹️"      FalseText="🎤"/>
         <converters:InvertedBoolConverter       x:Key="InvertBool"/>
         <converters:IntGreaterThanZeroConverter x:Key="IntGtZero"/>
     </ContentPage.Resources>

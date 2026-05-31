@@ -182,9 +182,9 @@ public class LocalizationService : ILocalizationService
         ["voice_help"] = "Tulong",
 
         // Voice Registration Validation Phrases
-        ["voice_phrase_1"] = "Password 1",/*"Ang aking boses ay aking password",*/
-        ["voice_phrase_2"] = "Password 2",//"Pinahihintulutan ko ang transaksyon na ito",
-        ["voice_phrase_3"] = "Password 3", //"Ito ang aking secure na boses",
+        ["voice_phrase_1"] = "Ang aking boses ay aking password",
+        ["voice_phrase_2"] = "Pinahihintulutan ko ang transaksyon na ito",
+        ["voice_phrase_3"] = "Ito ang aking secure na boses",
 
         // Voice Registration Validation Messages
         ["voice_validation_instruction"] = "Pakisabi: \"{0}\"",
