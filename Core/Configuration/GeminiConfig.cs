@@ -33,7 +33,7 @@ public static class GeminiConfig
     /// Model to use. "gemini-1.5-flash" is free-tier friendly and fast.
     /// Alternatives: "gemini-1.5-pro", "gemini-2.0-flash"
     /// </summary>
-    public const string ModelId = "gemini-3.5-flash";
+    public const string ModelId = "gemini-1.5-flash";
 
     /// <summary>True when a Gemini API key has been configured.</summary>
     public static bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey);

@@ -9,13 +9,13 @@ Get Boses running in **5 minutes**!
 ### Step 1: Prerequisites Check
 
 Ensure you have:
-- ✅ **.NET 8 SDK** - [Download here](https://dotnet.microsoft.com/download/dotnet/8.0)
+- ✅ **.NET 9 SDK** - [Download here](https://dotnet.microsoft.com/download/dotnet/9.0)
 - ✅ **Visual Studio 2022** (17.8+) with MAUI workload
 
 **Verify installation**:
 ```bash
 dotnet --version
-# Should show 8.0.x or higher
+# Should show 9.0.x or higher
 ```
 
 ### Step 2: Open the Project
@@ -37,12 +37,7 @@ dotnet build
 
 **Windows (Recommended for first run)**:
 ```bash
-dotnet build -t:Run -f net8.0-windows10.0.19041.0
-```
-
-**Android Emulator**:
-```bash
-dotnet build -t:Run -f net8.0-android
+dotnet build -t:Run -f net9.0-windows10.0.19041.0
 ```
 
 ---
@@ -267,10 +262,10 @@ dotnet restore
 dotnet build
 
 # Run on Windows
-dotnet build -t:Run -f net8.0-windows10.0.19041.0
+dotnet build -t:Run -f net9.0-windows10.0.19041.0
 
 # Run on Android
-dotnet build -t:Run -f net8.0-android
+dotnet build -t:Run -f net9.0-android
 
 # Clean build
 dotnet clean
